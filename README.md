@@ -27,8 +27,11 @@ Phần mềm dịch thuật tức thì chạy ngầm trên Windows với giao di
    - Tự động nhận diện chữ tiếng Anh / tiếng nước ngoài qua **Windows Media OCR** (nội tại Windows, 100% offline, siêu nhanh).
    - Popup hiển thị văn bản vừa nhận diện và bản dịch tiếng Việt tương ứng.
 
-3. **Giao diện Popup thông minh**:
+3. **Giao diện Popup thông minh & Ô nhập liệu tùy chỉnh**:
    - Giao diện Dark mode bo góc tinh tế, bóng đổ mềm mại.
+   - **Chỉnh sửa ô input trực tiếp**: Cho phép sửa từ, sửa câu hoặc gõ thêm nội dung mới ngay trong ô văn bản gốc.
+   - **Tự động dịch thông minh**: Tự động dịch sau 600ms khi người dùng dừng gõ, hoặc bấm **`Ctrl + Enter`** / nút **`🔄 Dịch lại`** để dịch ngay lập tức.
+   - Nút **`✕ Xóa`**: Xóa nhanh văn bản cũ để nhập từ mới như một từ điển mini.
    - Tự động định vị thông minh gần chuột / vùng chọn, không bị tràn ra ngoài màn hình.
    - Nút **📌 Ghim**: Giữ popup luôn hiển thị nếu bạn muốn đọc lâu.
    - Tự động đóng khi click chuột ra ngoài (nếu không ghim) hoặc bấm phím `Esc`.

@@ -31,13 +31,20 @@ QLabel#LangBadge {
 }
 
 QTextEdit#SourceText {
-    background-color: #262630;
-    border: 1px solid #363645;
+    background-color: #24242e;
+    border: 1px solid #3d3d4e;
     border-radius: 8px;
-    color: #b0b0be;
+    color: #f1f5f9;
     font-family: "Segoe UI", "Roboto", sans-serif;
     font-size: 12px;
-    padding: 6px;
+    padding: 6px 8px;
+    selection-background-color: #2563eb;
+    selection-color: #ffffff;
+}
+
+QTextEdit#SourceText:focus {
+    border: 1px solid #3b82f6;
+    background-color: #292936;
 }
 
 QTextEdit#TranslatedText {
@@ -83,6 +90,26 @@ QPushButton#IconButton {
 QPushButton#IconButton:hover {
     background-color: #2f2f3d;
     color: #ffffff;
+}
+
+QPushButton#SmallActionButton {
+    background-color: #2b2b38;
+    border: 1px solid #3d3d4e;
+    border-radius: 5px;
+    color: #a1a1aa;
+    font-size: 10px;
+    padding: 2px 7px;
+    font-weight: 500;
+}
+
+QPushButton#SmallActionButton:hover {
+    background-color: #38384a;
+    color: #ffffff;
+    border-color: #60a5fa;
+}
+
+QPushButton#SmallActionButton:pressed {
+    background-color: #20202a;
 }
 
 QPushButton#PinButton[pinned="true"] {
