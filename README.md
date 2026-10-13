@@ -31,6 +31,9 @@ Phần mềm dịch thuật tức thì chạy ngầm trên Windows với giao di
    - Giao diện Dark mode bo góc tinh tế, bóng đổ mềm mại.
    - **Chỉnh sửa ô input trực tiếp**: Cho phép sửa từ, sửa câu hoặc gõ thêm nội dung mới ngay trong ô văn bản gốc.
    - **Tự động dịch thông minh**: Tự động dịch sau 600ms khi người dùng dừng gõ, hoặc bấm **`Ctrl + Enter`** / nút **`🔄 Dịch lại`** để dịch ngay lập tức.
+   - **Phát âm âm thanh (TTS 🔊)**: Nút `🔊 Đọc` trên cả ô văn bản gốc và ô kết quả dịch để nghe phát âm giọng chuẩn (hỗ trợ offline Windows SAPI và online TTS).
+   - **Đổi chiều ngôn ngữ (Swap ⇄)**: Nút `⇄` hoán đổi tức thì giữa `AUTO ➔ VI` và `VI ➔ EN`, đồng thời tự động hoán đổi nội dung 2 ô.
+   - **Menu chọn cặp ngôn ngữ**: Click vào badge ngôn ngữ để chọn nhanh Tiếng Anh, Tiếng Việt, Tiếng Nhật, Hàn, Trung, Pháp.
    - Nút **`✕ Xóa`**: Xóa nhanh văn bản cũ để nhập từ mới như một từ điển mini.
    - Tự động định vị thông minh gần chuột / vùng chọn, không bị tràn ra ngoài màn hình.
    - Nút **📌 Ghim**: Giữ popup luôn hiển thị nếu bạn muốn đọc lâu.

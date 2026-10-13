@@ -5,6 +5,23 @@ Mọi thay đổi đáng chú ý của dự án FastTranslate sẽ được ghi 
 
 ---
 
+## [1.3.0] - 2026-10-13
+
+### Added
+- **Phát âm âm thanh đa ngôn ngữ (Text-to-Speech - TTS 🔊)**:
+  - Nút `🔊 Đọc` văn bản gốc trên thanh công cụ để nghe phát âm từ vựng/câu tiếng Anh chuẩn.
+  - Nút `🔊 Đọc` bản dịch ở góc dưới để nghe phát âm của kết quả dịch.
+  - Tích hợp giọng đọc nội tại Windows qua `QTextToSpeech` (offline, 0ms latency cho tiếng Anh) kết hợp bộ phát âm trực tuyến và bộ đệm cache âm thanh `~/.fast_translate/tts_cache/`.
+  - Tự động dừng phát âm khi người dùng đóng/ẩn popup.
+- **Đổi chiều ngôn ngữ (Language Swap ⇄)**:
+  - Nút **`⇄`** trên thanh tiêu đề cho phép hoán đổi nhanh chiều dịch (ví dụ `AUTO ➔ VI` ⇄ `VI ➔ EN`).
+  - Tự động hoán đổi nội dung giữa ô gốc và ô dịch nếu đã có sẵn bản dịch.
+- **Chọn cặp ngôn ngữ linh hoạt**:
+  - Badge ngôn ngữ có thể click để mở menu chọn nhanh các cặp ngôn ngữ phổ biến: Tiếng Anh, Tiếng Việt, Tiếng Nhật, Tiếng Hàn, Tiếng Trung, Tiếng Pháp.
+- Bộ kiểm thử tự động `tests/test_tts_and_swap.py`.
+
+---
+
 ## [1.2.0] - 2026-10-13
 
 ### Added
