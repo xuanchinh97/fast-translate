@@ -2,11 +2,12 @@ from PySide6.QtCore import Qt, QPoint, QRunnable, QThreadPool, QObject, Signal, 
 from PySide6.QtGui import QCursor, QGuiApplication, QColor, QIcon
 from PySide6.QtWidgets import (
     QWidget, QVBoxLayout, QHBoxLayout, QLabel, QTextEdit,
-    QPushButton, QGraphicsDropShadowEffect, QFrame, QSizePolicy
+    QPushButton, QGraphicsDropShadowEffect, QFrame, QSizePolicy, QMenu
 )
 import pyperclip
 from src.config import config
 from src.core.translator import translator, TranslationResult
+from src.core.tts_engine import tts_engine
 from src.ui.styles import DARK_THEME
 
 
@@ -15,13 +16,15 @@ class TranslationSignals(QObject):
 
 
 class TranslationTask(QRunnable):
-    def __init__(self, text: str):
+    def __init__(self, text: str, src: str = "auto", tgt: str = "vi"):
         super().__init__()
         self.text = text
+        self.src = src
+        self.tgt = tgt
         self.signals = TranslationSignals()
 
     def run(self):
-        result = translator.translate(self.text)
+        result = translator.translate(self.text, src=self.src, tgt=self.tgt)
         try:
             self.signals.finished.emit(result)
         except RuntimeError:
@@ -54,6 +57,11 @@ class PopupWindow(QWidget):
         self._last_translated_text = ""
         self._active_translation_task = None
 
+        # Cặp ngôn ngữ hiện tại
+        self.source_lang = config.get("source_lang", "auto")
+        self.target_lang = config.get("target_lang", "vi")
+        self._detected_src_lang = None
+
         # Debounce timer tự động dịch sau khi người dùng dừng gõ 600ms
         self._debounce_timer = QTimer(self)
         self._debounce_timer.setSingleShot(True)
@@ -64,6 +72,10 @@ class PopupWindow(QWidget):
         self.init_ui()
         self.thread_pool = QThreadPool.globalInstance()
 
+        # Kết nối trạng thái phát âm TTS
+        tts_engine.speaking_started.connect(self._on_speaking_started)
+        tts_engine.speaking_finished.connect(self._on_speaking_finished)
+
     def init_window_flags(self):
         self.setWindowFlags(
             Qt.WindowType.FramelessWindowHint |
@@ -71,7 +83,7 @@ class PopupWindow(QWidget):
             Qt.WindowType.Tool
         )
         self.setAttribute(Qt.WidgetAttribute.WA_TranslucentBackground, True)
-        self.resize(config.get("window_width", 390), config.get("window_height", 270))
+        self.resize(config.get("window_width", 400), config.get("window_height", 275))
 
     def init_ui(self):
         # Outer layout with margins for drop shadow
@@ -94,10 +106,20 @@ class PopupWindow(QWidget):
         self.title_label = QLabel("FAST TRANSLATE")
         self.title_label.setObjectName("HeaderTitle")
 
-        self.lang_badge = QLabel("AUTO ➔ VI")
-        self.lang_badge.setObjectName("LangBadge")
+        # Nút đổi chiều ngôn ngữ (Swap)
+        self.swap_lang_btn = QPushButton("⇄")
+        self.swap_lang_btn.setObjectName("SwapButton")
+        self.swap_lang_btn.setToolTip("Đổi chiều ngôn ngữ (Anh ⇄ Việt)")
+        self.swap_lang_btn.clicked.connect(self.swap_language_direction)
+
+        # Badge ngôn ngữ (có thể click để chọn danh sách ngôn ngữ)
+        self.lang_badge = QPushButton("AUTO ➔ VI")
+        self.lang_badge.setObjectName("LangBadgeBtn")
+        self.lang_badge.setToolTip("Click để chọn cặp ngôn ngữ dịch")
+        self.lang_badge.clicked.connect(self.show_language_menu)
 
         header.addWidget(self.title_label)
+        header.addWidget(self.swap_lang_btn)
         header.addWidget(self.lang_badge)
         header.addStretch()
 
@@ -123,6 +145,12 @@ class PopupWindow(QWidget):
         source_title = QLabel("VĂN BẢN GỐC")
         source_title.setStyleSheet("color: #71717a; font-size: 10px; font-weight: 600; letter-spacing: 0.5px;")
 
+        # Nút phát âm văn bản gốc
+        self.speak_source_btn = QPushButton("🔊 Đọc")
+        self.speak_source_btn.setObjectName("SmallActionButton")
+        self.speak_source_btn.setToolTip("Nghe phát âm văn bản gốc")
+        self.speak_source_btn.clicked.connect(self.speak_source_text)
+
         self.retranslate_btn = QPushButton("🔄 Dịch lại")
         self.retranslate_btn.setObjectName("SmallActionButton")
         self.retranslate_btn.setToolTip("Dịch lại ngay lập tức (Ctrl+Enter)")
@@ -135,6 +163,7 @@ class PopupWindow(QWidget):
 
         source_bar.addWidget(source_title)
         source_bar.addStretch()
+        source_bar.addWidget(self.speak_source_btn)
         source_bar.addWidget(self.retranslate_btn)
         source_bar.addWidget(self.clear_btn)
         card_layout.addLayout(source_bar)
@@ -161,10 +190,16 @@ class PopupWindow(QWidget):
 
         # --- Footer ---
         footer = QHBoxLayout()
-        footer.setSpacing(8)
+        footer.setSpacing(6)
 
         self.status_label = QLabel("")
         self.status_label.setStyleSheet("color: #71717a; font-size: 11px;")
+
+        # Nút phát âm bản dịch
+        self.speak_target_btn = QPushButton("🔊 Đọc")
+        self.speak_target_btn.setObjectName("SmallActionButton")
+        self.speak_target_btn.setToolTip("Nghe phát âm bản dịch")
+        self.speak_target_btn.clicked.connect(self.speak_target_text)
 
         self.copy_btn = QPushButton("📋 Sao chép")
         self.copy_btn.setObjectName("CopyButton")
@@ -172,6 +207,7 @@ class PopupWindow(QWidget):
 
         footer.addWidget(self.status_label)
         footer.addStretch()
+        footer.addWidget(self.speak_target_btn)
         footer.addWidget(self.copy_btn)
         card_layout.addLayout(footer)
 
@@ -268,6 +304,7 @@ class PopupWindow(QWidget):
 
     def clear_source_text(self):
         """Xóa nội dung ô input để nhập mới"""
+        tts_engine.stop()
         self._debounce_timer.stop()
         self._is_programmatic_change = True
         self.source_edit.setPlainText("")
@@ -275,22 +312,109 @@ class PopupWindow(QWidget):
         self._last_translated_text = ""
         self.target_edit.setPlainText("Đã xóa nội dung. Nhập văn bản mới để dịch...")
         self.status_label.setText("0 ký tự")
-        self.lang_badge.setText("NHẬP TAY")
+        self._update_lang_badge_display()
         self.source_edit.setFocus()
+
+    def swap_language_direction(self):
+        """Đổi chiều ngôn ngữ giữa Nguồn và Đích (ví dụ AUTO->VI <-> VI->EN)"""
+        tts_engine.stop()
+        if self.target_lang.lower() == "vi":
+            self.source_lang = "vi"
+            self.target_lang = "en"
+        else:
+            self.source_lang = "auto"
+            self.target_lang = "vi"
+
+        self._detected_src_lang = None
+        self._update_lang_badge_display()
+
+        # Hoán đổi nội dung 2 ô nếu đã có kết quả dịch
+        src_text = self.source_edit.toPlainText().strip()
+        tgt_text = self.target_edit.toPlainText().strip()
+
+        if tgt_text and not tgt_text.startswith("⏳") and not tgt_text.startswith("Chưa") and not tgt_text.startswith("Đang") and not tgt_text.startswith("Đã"):
+            self._is_programmatic_change = True
+            self.source_edit.setPlainText(tgt_text)
+            self._is_programmatic_change = False
+            self._trigger_translation(tgt_text)
+        elif src_text:
+            self._trigger_translation(src_text)
+
+    def show_language_menu(self):
+        """Hiển thị menu chọn các cặp ngôn ngữ phổ biến"""
+        menu = QMenu(self)
+        actions = [
+            ("🌐 Tự động ➔ Tiếng Việt (AUTO ➔ VI)", "auto", "vi"),
+            ("🔄 Tiếng Việt ➔ Tiếng Anh (VI ➔ EN)", "vi", "en"),
+            ("🇺🇸 Tiếng Anh ➔ Tiếng Việt (EN ➔ VI)", "en", "vi"),
+            ("🇯🇵 Tự động ➔ Tiếng Nhật (AUTO ➔ JA)", "auto", "ja"),
+            ("🇰🇷 Tự động ➔ Tiếng Hàn (AUTO ➔ KO)", "auto", "ko"),
+            ("🇨🇳 Tự động ➔ Tiếng Trung (AUTO ➔ ZH-CN)", "auto", "zh-cn"),
+            ("🇫🇷 Tự động ➔ Tiếng Pháp (AUTO ➔ FR)", "auto", "fr"),
+        ]
+
+        for label, src, tgt in actions:
+            action = menu.addAction(label)
+            action.triggered.connect(lambda checked=False, s=src, t=tgt: self.set_language_pair(s, t))
+
+        menu.exec(self.lang_badge.mapToGlobal(QPoint(0, self.lang_badge.height() + 4)))
+
+    def set_language_pair(self, src: str, tgt: str):
+        """Đặt cặp ngôn ngữ dịch tường minh"""
+        tts_engine.stop()
+        self.source_lang = src
+        self.target_lang = tgt
+        self._detected_src_lang = src if src != "auto" else None
+        self._update_lang_badge_display()
+
+        src_text = self.source_edit.toPlainText().strip()
+        if src_text:
+            self._trigger_translation(src_text)
+
+    def _update_lang_badge_display(self):
+        src_disp = (self._detected_src_lang or self.source_lang).upper()
+        tgt_disp = self.target_lang.upper()
+        self.lang_badge.setText(f"{src_disp} ➔ {tgt_disp}")
+
+    def speak_source_text(self):
+        """Phát âm văn bản gốc"""
+        text = self.source_edit.toPlainText().strip()
+        if not text:
+            return
+        lang = self._detected_src_lang or self.source_lang
+        if lang == "auto":
+            lang = "en"
+        tts_engine.speak(text, lang)
+
+    def speak_target_text(self):
+        """Phát âm bản dịch"""
+        text = self.target_edit.toPlainText().strip()
+        if not text or text.startswith("⏳") or text.startswith("Chưa") or text.startswith("Đang") or text.startswith("Đã"):
+            return
+        lang = self.target_lang or "vi"
+        tts_engine.speak(text, lang)
+
+    def _on_speaking_started(self):
+        self.status_label.setText("🔊 Đang phát âm...")
+
+    def _on_speaking_finished(self):
+        current_len = len(self.source_edit.toPlainText().strip())
+        self.status_label.setText(f"{current_len} ký tự - Đã dịch" if current_len else "")
 
     def _trigger_translation(self, text: str):
         """Bắt đầu tác vụ dịch ngầm"""
         self._last_translated_text = text
         self.target_edit.setPlainText("⏳ Đang dịch...")
-        self.lang_badge.setText("AUTO ➔ VI")
+        self._update_lang_badge_display()
         self.status_label.setText(f"{len(text)} ký tự - Đang dịch...")
 
         # Async translation (retain reference to prevent GC)
-        self._active_translation_task = TranslationTask(text)
+        self._active_translation_task = TranslationTask(text, src=self.source_lang, tgt=self.target_lang)
         self._active_translation_task.signals.finished.connect(self._on_translation_finished)
         self.thread_pool.start(self._active_translation_task)
 
     def show_empty_prompt(self, target_pos: QPoint = None):
+        tts_engine.stop()
         self._debounce_timer.stop()
         self._is_programmatic_change = True
         self.source_edit.setPlainText("")
@@ -300,7 +424,7 @@ class PopupWindow(QWidget):
         self.target_edit.setPlainText(
             "Chưa phát hiện văn bản bôi đen.\n👉 Bạn có thể gõ trực tiếp vào ô trên (Ctrl+Enter để dịch)."
         )
-        self.lang_badge.setText("NHẬP TAY")
+        self._update_lang_badge_display()
         self.status_label.setText("Sẵn sàng nhập liệu")
         self.position_smartly(target_pos)
         self.show()
@@ -309,6 +433,7 @@ class PopupWindow(QWidget):
         self.source_edit.setFocus()
 
     def show_translation_for_text(self, text: str, target_pos: QPoint = None):
+        tts_engine.stop()
         text = text.strip()
         if not text:
             self.show_empty_prompt(target_pos)
@@ -328,18 +453,22 @@ class PopupWindow(QWidget):
 
     def _on_translation_finished(self, result: TranslationResult):
         current_text = self.source_edit.toPlainText().strip()
-        # Nếu nội dung trong ô input đã đổi khác với kết quả vừa xong, bỏ qua để tránh ghi đè kết quả cũ
         if result.original != current_text:
             return
 
         if result.success:
             self.target_edit.setPlainText(result.translated)
-            self.lang_badge.setText(f"{result.source_lang} ➔ {result.target_lang}")
+            self._detected_src_lang = result.source_lang.lower()
+            self._update_lang_badge_display()
             self.status_label.setText(f"{len(current_text)} ký tự - Đã dịch")
         else:
             self.target_edit.setPlainText(result.error_message or "Dịch không thành công")
             self.lang_badge.setText("LỖI")
             self.status_label.setText("Lỗi dịch thuật")
+
+    def hide(self):
+        tts_engine.stop()
+        super().hide()
 
     # Drag window support
     def mousePressEvent(self, event):

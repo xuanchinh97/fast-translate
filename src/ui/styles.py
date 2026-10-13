@@ -112,6 +112,58 @@ QPushButton#SmallActionButton:pressed {
     background-color: #20202a;
 }
 
+QPushButton#SwapButton {
+    background-color: #262632;
+    border: 1px solid #3d3d4e;
+    border-radius: 5px;
+    color: #60a5fa;
+    font-size: 13px;
+    font-weight: bold;
+    padding: 1px 7px;
+}
+
+QPushButton#SwapButton:hover {
+    background-color: #3b82f6;
+    color: #ffffff;
+    border-color: #60a5fa;
+}
+
+QPushButton#LangBadgeBtn {
+    background-color: #262632;
+    color: #60a5fa;
+    border: 1px solid #3d3d4e;
+    border-radius: 5px;
+    padding: 2px 8px;
+    font-size: 11px;
+    font-weight: bold;
+}
+
+QPushButton#LangBadgeBtn:hover {
+    background-color: #323242;
+    border-color: #60a5fa;
+    color: #93c5fd;
+}
+
+QMenu {
+    background-color: #1e1e24;
+    border: 1px solid #3b3b4a;
+    border-radius: 8px;
+    padding: 4px;
+    color: #f0f0f5;
+}
+
+QMenu::item {
+    padding: 6px 14px;
+    border-radius: 4px;
+    font-size: 11px;
+    color: #e2e8f0;
+}
+
+QMenu::item:selected {
+    background-color: #2563eb;
+    color: #ffffff;
+}
+
 QPushButton#PinButton[pinned="true"] {
     background-color: #2563eb;
     color: #ffffff;
