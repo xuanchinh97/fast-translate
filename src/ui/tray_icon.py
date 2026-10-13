@@ -1,3 +1,4 @@
+import sys
 from pathlib import Path
 from PySide6.QtCore import Qt, Signal
 from PySide6.QtGui import QIcon, QPixmap, QPainter, QColor, QFont
@@ -8,7 +9,10 @@ from src.core.autostart import is_autostart_enabled, set_autostart
 
 def get_application_icon() -> QIcon:
     """Returns the crisp multi-resolution .ico icon if available, or fallback QIcon"""
-    icon_path = Path(__file__).resolve().parent.parent.parent / "assets" / "icon.ico"
+    if getattr(sys, "frozen", False) and hasattr(sys, "_MEIPASS"):
+        icon_path = Path(sys._MEIPASS) / "assets" / "icon.ico"
+    else:
+        icon_path = Path(__file__).resolve().parent.parent.parent / "assets" / "icon.ico"
     if icon_path.exists():
         icon = QIcon(str(icon_path))
         if not icon.isNull():
