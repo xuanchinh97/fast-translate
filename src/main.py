@@ -107,7 +107,13 @@ class FastTranslateApp:
         socket = QLocalSocket()
         socket.connectToServer(self.server_name)
         if socket.waitForConnected(500):
-            # Another instance exists and responded
+            # Another instance exists -> send wake-up signal to show popup
+            try:
+                socket.write(b"show\n")
+                socket.waitForBytesWritten(500)
+                socket.disconnectFromServer()
+            except Exception:
+                pass
             return False
 
         # Create local server for this instance
@@ -115,7 +121,20 @@ class FastTranslateApp:
         self.local_server.removeServer(self.server_name)
         if not self.local_server.listen(self.server_name):
             log(f"[App] Warning: Could not listen on single instance server: {self.local_server.errorString()}")
+        else:
+            self.local_server.newConnection.connect(self._on_secondary_instance_ping)
         return True
+
+    def _on_secondary_instance_ping(self):
+        try:
+            client = self.local_server.nextPendingConnection()
+            if client:
+                client.waitForReadyRead(300)
+                client.close()
+            log("[App] Received ping from run.bat / secondary instance -> triggering popup")
+            self.handle_text_translation()
+        except Exception as e:
+            log(f"[App] Error handling secondary ping: {e}")
 
     def _bind_signals(self):
         # Hotkey bindings
