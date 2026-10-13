@@ -5,6 +5,21 @@ Mọi thay đổi đáng chú ý của dự án FastTranslate sẽ được ghi 
 
 ---
 
+## [1.2.0] - 2026-10-13
+
+### Added
+- **Cho phép chỉnh sửa ô văn bản gốc (Editable Input)**: Người dùng có thể click sửa từ, câu hoặc nhập văn bản mới trực tiếp trong popup.
+- **Tự động dịch thông minh (Debounce 600ms)**: Tự động gửi yêu cầu dịch sau khi người dùng ngừng gõ, không cần bấm thêm thao tác.
+- **Phím tắt `Ctrl + Enter`**: Dịch ngay lập tức khi đang con trỏ ở ô nhập liệu.
+- **Thanh công cụ nhanh**:
+  - Nút **`🔄 Dịch lại`**: Kích hoạt dịch ngay bản dịch mới.
+  - Nút **`✕ Xóa`**: Xóa nhanh nội dung ô nhập để nhập từ khác.
+- **Bộ đếm ký tự & trạng thái thời gian thực**: Hiển thị số lượng ký tự và tiến trình dịch trực quan ở góc dưới popup.
+- **Bảo vệ kết quả cũ (Race condition protection)**: Không ghi đè bản dịch cũ nếu người dùng đã thay đổi nội dung ô nhập.
+- Bộ kiểm thử tự động `tests/test_popup_editable.py` cho tính năng chỉnh sửa ô input.
+
+---
+
 ## [1.1.0] - 2026-10-09
 
 ### Added
