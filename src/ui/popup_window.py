@@ -151,10 +151,11 @@ class PopupWindow(QWidget):
         self.speak_source_btn.setToolTip("Nghe phát âm văn bản gốc")
         self.speak_source_btn.clicked.connect(self.speak_source_text)
 
-        self.retranslate_btn = QPushButton("🔄 Dịch lại")
-        self.retranslate_btn.setObjectName("SmallActionButton")
-        self.retranslate_btn.setToolTip("Dịch lại ngay lập tức (Ctrl+Enter)")
+        self.retranslate_btn = QPushButton("↻ Thử lại")
+        self.retranslate_btn.setObjectName("RetryButton")
+        self.retranslate_btn.setToolTip("Thử dịch lại (Ctrl+Enter)")
         self.retranslate_btn.clicked.connect(self.trigger_manual_translation)
+        self.retranslate_btn.setVisible(False)
 
         self.clear_btn = QPushButton("✕ Xóa")
         self.clear_btn.setObjectName("SmallActionButton")
@@ -310,6 +311,7 @@ class PopupWindow(QWidget):
         self.source_edit.setPlainText("")
         self._is_programmatic_change = False
         self._last_translated_text = ""
+        self.retranslate_btn.setVisible(False)
         self.target_edit.setPlainText("Đã xóa nội dung. Nhập văn bản mới để dịch...")
         self.status_label.setText("0 ký tự")
         self._update_lang_badge_display()
@@ -403,6 +405,7 @@ class PopupWindow(QWidget):
 
     def _trigger_translation(self, text: str):
         """Bắt đầu tác vụ dịch ngầm"""
+        self.retranslate_btn.setVisible(False)
         self._last_translated_text = text
         self.target_edit.setPlainText("⏳ Đang dịch...")
         self._update_lang_badge_display()
@@ -415,6 +418,7 @@ class PopupWindow(QWidget):
 
     def show_empty_prompt(self, target_pos: QPoint = None):
         tts_engine.stop()
+        self.retranslate_btn.setVisible(False)
         self._debounce_timer.stop()
         self._is_programmatic_change = True
         self.source_edit.setPlainText("")
@@ -457,11 +461,13 @@ class PopupWindow(QWidget):
             return
 
         if result.success:
+            self.retranslate_btn.setVisible(False)
             self.target_edit.setPlainText(result.translated)
             self._detected_src_lang = result.source_lang.lower()
             self._update_lang_badge_display()
             self.status_label.setText(f"{len(current_text)} ký tự - Đã dịch")
         else:
+            self.retranslate_btn.setVisible(True)
             self.target_edit.setPlainText(result.error_message or "Dịch không thành công")
             self.lang_badge.setText("LỖI")
             self.status_label.setText("Lỗi dịch thuật")
