@@ -45,7 +45,7 @@ if sys.stderr is None:
 
 from PySide6.QtCore import Qt, QPoint, QRunnable, QThreadPool, QObject, Signal, QTimer
 from PySide6.QtGui import QCursor, QGuiApplication
-from PySide6.QtWidgets import QApplication
+from PySide6.QtWidgets import QApplication, QSystemTrayIcon
 from PySide6.QtNetwork import QLocalServer, QLocalSocket
 
 from src.config import config
@@ -56,6 +56,7 @@ from src.core.autostart import is_autostart_enabled, enable_autostart
 from src.ui.popup_window import PopupWindow
 from src.ui.snipping_widget import SnippingWidget
 from src.ui.tray_icon import TrayIcon
+from src.ui.settings_dialog import SettingsDialog
 
 
 class OCRTaskSignals(QObject):
@@ -95,6 +96,7 @@ class FastTranslateApp:
         self.popup = PopupWindow()
         self.snipper = SnippingWidget()
         self.tray = TrayIcon()
+        self.settings_dialog = SettingsDialog()
         self.hotkeys = HotkeyListener()
 
         self._bind_signals()
@@ -144,9 +146,38 @@ class FastTranslateApp:
         # Tray bindings
         self.tray.text_action_triggered.connect(self.handle_text_translation)
         self.tray.ocr_action_triggered.connect(self.handle_ocr_capture)
+        self.tray.settings_action_triggered.connect(self.show_settings)
+
+        # Settings dialog bindings
+        self.settings_dialog.settings_saved.connect(self.handle_settings_saved)
 
         # Snipper bindings
         self.snipper.snippet_captured.connect(self.handle_snippet_captured)
+
+    def show_settings(self):
+        """Called when user clicks Settings in tray menu"""
+        log("[App] show_settings triggered")
+        self.settings_dialog.show()
+        self.settings_dialog.raise_()
+        self.settings_dialog.activateWindow()
+
+    def handle_settings_saved(self):
+        """Called when user saves new settings from SettingsDialog"""
+        log("[App] Settings saved, reloading hotkeys and tray labels...")
+        self.hotkeys.reload()
+        self.tray.update_labels()
+        self.popup.source_lang = config.get("source_lang", "auto")
+        self.popup.target_lang = config.get("target_lang", "vi")
+        self.popup._update_lang_badge_display()
+        try:
+            self.tray.showMessage(
+                "FastTranslate",
+                "Đã lưu cài đặt và áp dụng phím tắt mới!",
+                QSystemTrayIcon.MessageIcon.Information,
+                2500
+            )
+        except Exception:
+            pass
 
     def handle_text_translation(self):
         """Called when user presses Alt+D or clicks tray action"""

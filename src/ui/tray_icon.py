@@ -32,6 +32,7 @@ def get_application_icon() -> QIcon:
 class TrayIcon(QSystemTrayIcon):
     text_action_triggered = Signal()
     ocr_action_triggered = Signal()
+    settings_action_triggered = Signal()
 
     def __init__(self, parent=None):
         super().__init__(parent)
@@ -51,28 +52,33 @@ class TrayIcon(QSystemTrayIcon):
         text_hk = config.get("hotkey_text", "alt+d").upper()
         ocr_hk = config.get("hotkey_ocr", "alt+shift+d").upper()
 
-        text_act = menu.addAction(f"Dịch văn bản bôi đen ({text_hk})")
-        text_act.triggered.connect(self.text_action_triggered.emit)
+        self.text_act = menu.addAction(f"Dịch văn bản bôi đen ({text_hk})")
+        self.text_act.triggered.connect(self.text_action_triggered.emit)
 
-        ocr_act = menu.addAction(f"Chụp màn hình OCR ({ocr_hk})")
-        ocr_act.triggered.connect(self.ocr_action_triggered.emit)
+        self.ocr_act = menu.addAction(f"Chụp màn hình OCR ({ocr_hk})")
+        self.ocr_act.triggered.connect(self.ocr_action_triggered.emit)
 
         menu.addSeparator()
 
-        clip_act = menu.addAction("Khôi phục clipboard cũ")
-        clip_act.setCheckable(True)
-        clip_act.setChecked(config.get("restore_clipboard", True))
-        clip_act.toggled.connect(lambda val: config.set("restore_clipboard", val))
+        self.clip_act = menu.addAction("Khôi phục clipboard cũ")
+        self.clip_act.setCheckable(True)
+        self.clip_act.setChecked(config.get("restore_clipboard", True))
+        self.clip_act.toggled.connect(lambda val: config.set("restore_clipboard", val))
 
-        autoclose_act = menu.addAction("Tự đóng khi bấm ra ngoài")
-        autoclose_act.setCheckable(True)
-        autoclose_act.setChecked(config.get("auto_close_on_focus_loss", True))
-        autoclose_act.toggled.connect(lambda val: config.set("auto_close_on_focus_loss", val))
+        self.autoclose_act = menu.addAction("Tự đóng khi bấm ra ngoài")
+        self.autoclose_act.setCheckable(True)
+        self.autoclose_act.setChecked(config.get("auto_close_on_focus_loss", True))
+        self.autoclose_act.toggled.connect(lambda val: config.set("auto_close_on_focus_loss", val))
 
-        autostart_act = menu.addAction("Khởi động cùng Windows")
-        autostart_act.setCheckable(True)
-        autostart_act.setChecked(is_autostart_enabled())
-        autostart_act.toggled.connect(self._handle_autostart_toggle)
+        self.autostart_act = menu.addAction("Khởi động cùng Windows")
+        self.autostart_act.setCheckable(True)
+        self.autostart_act.setChecked(is_autostart_enabled())
+        self.autostart_act.toggled.connect(self._handle_autostart_toggle)
+
+        menu.addSeparator()
+
+        self.settings_act = menu.addAction("⚙️ Cài đặt...")
+        self.settings_act.triggered.connect(self.settings_action_triggered.emit)
 
         menu.addSeparator()
 
@@ -80,6 +86,16 @@ class TrayIcon(QSystemTrayIcon):
         quit_act.triggered.connect(QApplication.instance().quit)
 
         self.setContextMenu(menu)
+
+    def update_labels(self):
+        """Cập nhật lại tên phím tắt trên menu khi người dùng đổi cài đặt"""
+        text_hk = config.get("hotkey_text", "alt+d").upper()
+        ocr_hk = config.get("hotkey_ocr", "alt+shift+d").upper()
+        self.text_act.setText(f"Dịch văn bản bôi đen ({text_hk})")
+        self.ocr_act.setText(f"Chụp màn hình OCR ({ocr_hk})")
+        self.clip_act.setChecked(config.get("restore_clipboard", True))
+        self.autoclose_act.setChecked(config.get("auto_close_on_focus_loss", True))
+        self.autostart_act.setChecked(is_autostart_enabled())
 
     def _on_activated(self, reason: QSystemTrayIcon.ActivationReason):
         if reason == QSystemTrayIcon.ActivationReason.Trigger:

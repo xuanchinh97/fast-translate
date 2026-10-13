@@ -5,6 +5,25 @@ Mọi thay đổi đáng chú ý của dự án FastTranslate sẽ được ghi 
 
 ---
 
+## [1.4.0] - 2026-10-13
+
+### Added
+- **⚙️ Giao diện Cài đặt trực quan (Settings Dialog)**:
+  - Thêm mục menu **`⚙️ Cài đặt...`** trực tiếp trong khay hệ thống (System Tray).
+  - Hỗ trợ đổi phím tắt trực quan: người dùng chỉ cần click vào ô nhập rồi bấm tổ hợp phím mong muốn (hỗ trợ phím Modifiers Ctrl/Alt/Shift/Win, bấm `Esc` để hủy, `Backspace/Delete` để xóa).
+  - Chọn ngôn ngữ nguồn/đích mặc định từ danh sách trực quan.
+  - Tùy chọn hệ thống: Khởi động cùng Windows, Tự đóng popup khi mất focus, Tự khôi phục clipboard cũ.
+  - Nút **`↺ Đặt lại mặc định`** đưa mọi thiết lập về cấu hình tiêu chuẩn ban đầu.
+  - Áp dụng phím tắt mới tức thì (`reload hotkeys`) mà **không cần khởi động lại ứng dụng**, đồng thời cập nhật menu khay hệ thống và thông báo toast xác nhận.
+- **🖼️ Tiền xử lý ảnh OCR đa tầng (OCR Image Preprocessing)**:
+  - Tự động phóng to thông minh (Upscale bằng thuật toán LANCZOS) với các vùng chụp nhỏ dưới ngưỡng nhận diện.
+  - Chuyển đổi ảnh đa cấp xám (Grayscale) và cân bằng độ tương phản tự động (Auto-contrast).
+  - Cơ chế nhận diện đa tầng (Multi-pass recognition): thử nghiệm ảnh gốc, ảnh tăng cường tương phản, và ảnh đảo màu phân cực (Inverted polarity).
+  - Khắc phục triệt để vấn đề nhận diện chữ trên nền tối (Dark mode), chữ trắng trên nền đen/xám và giao diện IDE code.
+- Bộ kiểm thử tự động `tests/test_settings_dialog.py` và kiểm thử bổ sung cho OCR dark mode trong `tests/test_ocr.py`.
+
+---
+
 ## [1.3.0] - 2026-10-13
 
 ### Added

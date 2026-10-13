@@ -142,3 +142,8 @@ class HotkeyListener(QWidget):
             except Exception:
                 pass
             self._is_running = False
+
+    def reload(self):
+        """Khởi động lại listener để áp dụng phím tắt mới từ config"""
+        self.stop()
+        self.start()
