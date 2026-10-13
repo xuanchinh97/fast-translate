@@ -79,5 +79,38 @@ class TestPopupEditable(unittest.TestCase):
         self.assertTrue(len(triggered) == 1, "Esc must emit escape_requested signal")
 
 
+    def test_retry_button_visibility_on_error(self):
+        """Kiểm tra nút Thử lại: ẩn mặc định, chỉ hiện khi gặp lỗi"""
+        self.popup.show()
+        # Mặc định phải ẩn
+        self.assertTrue(self.popup.retranslate_btn.isHidden(), "Retry button should be hidden by default")
+
+        # Giả lập kết quả lỗi dịch
+        from src.core.translator import TranslationResult
+        error_res = TranslationResult(
+            original="test",
+            translated="",
+            source_lang="EN",
+            target_lang="VI",
+            success=False,
+            error_message="Lỗi mạng"
+        )
+        self.popup.source_edit.setPlainText("test")
+        self.popup._on_translation_finished(error_res)
+        self.assertFalse(self.popup.retranslate_btn.isHidden(), "Retry button must be visible on error")
+        self.assertEqual(self.popup.retranslate_btn.text(), "↻ Thử lại")
+
+        # Giả lập kết quả thành công
+        success_res = TranslationResult(
+            original="test",
+            translated="thử nghiệm",
+            source_lang="EN",
+            target_lang="VI",
+            success=True
+        )
+        self.popup._on_translation_finished(success_res)
+        self.assertTrue(self.popup.retranslate_btn.isHidden(), "Retry button must be hidden on success")
+
+
 if __name__ == "__main__":
     unittest.main()

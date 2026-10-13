@@ -20,6 +20,9 @@ Mọi thay đổi đáng chú ý của dự án FastTranslate sẽ được ghi 
   - Badge ngôn ngữ có thể click để mở menu chọn nhanh các cặp ngôn ngữ phổ biến: Tiếng Anh, Tiếng Việt, Tiếng Nhật, Tiếng Hàn, Tiếng Trung, Tiếng Pháp.
 - Bộ kiểm thử tự động `tests/test_tts_and_swap.py`.
 
+### Changed
+- **Tinh gọn thanh công cụ**: Chuyển nút dịch thủ công thành **`↻ Thử lại`** (Retry), mặc định ẩn đi trong trạng thái bình thường và chỉ tự động hiển thị nổi bật khi bản dịch gặp sự cố kết nối/timeout.
+
 ---
 
 ## [1.2.0] - 2026-10-13
