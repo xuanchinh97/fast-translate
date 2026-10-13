@@ -24,13 +24,14 @@ Phần mềm dịch thuật tức thì chạy ngầm trên Windows với giao di
 
 2. **Dịch qua ảnh chụp màn hình OCR (`Alt + Shift + D`)**:
    - Bấm `Alt + Shift + D`, toàn màn hình sẽ tối lại để bạn kéo chọn vùng văn bản muốn dịch.
-   - Tự động nhận diện chữ tiếng Anh / tiếng nước ngoài qua **Windows Media OCR** (nội tại Windows, 100% offline, siêu nhanh).
-   - Popup hiển thị văn bản vừa nhận diện và bản dịch tiếng Việt tương ứng.
+   - **Tiền xử lý ảnh nâng cao**: Tự động phóng to thông minh (Upscale Lanczos), chuyển Grayscale, cân bằng tương phản và xử lý đa tầng (Multi-pass recognition) giúp nhận diện hoàn hảo cả trên giao diện Dark mode, chữ màu sáng trên nền tối hoặc nền gradient.
+   - Tự động nhận diện chữ qua **Windows Media OCR** (nội tại Windows, 100% offline, siêu nhanh).
+   - Popup hiển thị văn bản vừa nhận diện và bản dịch tương ứng.
 
 3. **Giao diện Popup thông minh & Ô nhập liệu tùy chỉnh**:
    - Giao diện Dark mode bo góc tinh tế, bóng đổ mềm mại.
    - **Chỉnh sửa ô input trực tiếp**: Cho phép sửa từ, sửa câu hoặc gõ thêm nội dung mới ngay trong ô văn bản gốc.
-   - **Tự động dịch thông minh**: Tự động dịch sau 600ms khi người dùng dừng gõ, hoặc bấm **`Ctrl + Enter`** / nút **`🔄 Dịch lại`** để dịch ngay lập tức.
+   - **Tự động dịch thông minh**: Tự động dịch sau 600ms khi người dùng dừng gõ, hoặc bấm **`Ctrl + Enter`** / nút **`↻ Thử lại`** (khi gặp lỗi mạng) để dịch ngay lập tức.
    - **Phát âm âm thanh (TTS 🔊)**: Nút `🔊 Đọc` trên cả ô văn bản gốc và ô kết quả dịch để nghe phát âm giọng chuẩn (hỗ trợ offline Windows SAPI và online TTS).
    - **Đổi chiều ngôn ngữ (Swap ⇄)**: Nút `⇄` hoán đổi tức thì giữa `AUTO ➔ VI` và `VI ➔ EN`, đồng thời tự động hoán đổi nội dung 2 ô.
    - **Menu chọn cặp ngôn ngữ**: Click vào badge ngôn ngữ để chọn nhanh Tiếng Anh, Tiếng Việt, Tiếng Nhật, Hàn, Trung, Pháp.
@@ -40,10 +41,11 @@ Phần mềm dịch thuật tức thì chạy ngầm trên Windows với giao di
    - Tự động đóng khi click chuột ra ngoài (nếu không ghim) hoặc bấm phím `Esc`.
    - Nút **📋 Sao chép**: Copy nhanh kết quả dịch chỉ với 1 click.
 
-4. **Khay hệ thống (System Tray)**:
+4. **Khay hệ thống (System Tray) & Giao diện Cài đặt (Settings Dialog)**:
    - Icon ứng dụng luôn hiển thị ở khay hệ thống (gần đồng hồ Windows).
-   - Tùy chọn **"Khởi động cùng Windows"**: Tự động kích hoạt để mỗi lần mở máy là có thể dùng ngay mà không cần bật lại bằng tay.
-   - Click chuột phải để bật/tắt tính năng khôi phục clipboard, tự đóng, khởi động cùng Windows hoặc thoát ứng dụng.
+   - Mục **"⚙️ Cài đặt..."**: Mở cửa sổ trực quan để đổi phím tắt chỉ bằng cách bấm tổ hợp phím trên bàn phím (không cần sửa file json), đổi ngôn ngữ mặc định, bật/tắt tự khởi động.
+   - **Áp dụng tức thì**: Đổi phím tắt có hiệu lực ngay lập tức mà không cần khởi động lại ứng dụng.
+   - Nút **"↺ Đặt lại mặc định"** để khôi phục nhanh về cấu hình ban đầu.
 
 ---
 

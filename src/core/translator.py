@@ -74,11 +74,13 @@ class Translator:
         if not text:
             return "", src, True, None
 
+        last_err = ""
         # Try Google Dict Chrome endpoint first
         try:
             translated, detected = self._translate_google_dict_chrome(text, src, tgt)
             return translated, detected, True, None
         except Exception as e1:
+            last_err = str(e1)
             print(f"[Translator] Google primary failed: {e1}, attempting fallback...")
 
         # Fallback to MyMemory
@@ -87,7 +89,7 @@ class Translator:
             return translated, detected, True, None
         except Exception as e2:
             print(f"[Translator] Fallback failed: {e2}")
-            return "", src, False, f"Lỗi dịch thuật: Không thể kết nối máy chủ dịch ({e1})"
+            return "", src, False, f"Lỗi dịch thuật: Không thể kết nối máy chủ dịch ({last_err or e2})"
 
     def translate(self, text: str, src: Optional[str] = None, tgt: Optional[str] = None) -> TranslationResult:
         """

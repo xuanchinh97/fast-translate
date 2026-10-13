@@ -62,3 +62,6 @@ $RECYCLE.BIN/
 .pytest_cache/
 .coverage
 htmlcov/
+
+# Local tools & indexes
+.codegraph/

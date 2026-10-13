@@ -23,6 +23,16 @@ class TestOCREngine(unittest.TestCase):
             f"Expected 'Artificial' or 'Intelligence' in '{result}'"
         )
 
+    def test_dark_mode_ocr_recognition(self):
+        """Kiểm tra tiền xử lý ảnh nhận diện thành công chữ trên nền tối Dark mode"""
+        img = Image.new("RGB", (320, 80), color=(30, 30, 30))
+        draw = ImageDraw.Draw(img)
+        draw.text((15, 25), "Dark Mode OCR Test", fill=(220, 220, 220))
+
+        result = self.ocr.recognize(img)
+        print(f"[Test Dark Mode OCR Result]: '{result}'")
+        self.assertTrue(len(result) > 0, "Dark mode text should be recognized successfully")
+
 
 if __name__ == "__main__":
     unittest.main()
