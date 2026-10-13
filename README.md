@@ -51,18 +51,35 @@ Phần mềm dịch thuật tức thì chạy ngầm trên Windows với giao di
 
 ## 🚀 Cách chạy ứng dụng
 
-### Cách 1: Chạy file script
+### Cách 1: Chạy file `.exe` độc lập (Khuyên dùng - Không cần cài đặt Python)
+Chạy trực tiếp file:
+```
+dist\FastTranslate.exe
+```
+> Có thể copy file `FastTranslate.exe` sang bất kỳ máy tính Windows nào khác để sử dụng ngay mà không cần cài đặt Python, môi trường `.venv` hay cấu hình phức tạp.
+
+### Cách 2: Chạy qua file script
 Nhấp đúp chuột vào file **`run.bat`** trong thư mục dự án. Ứng dụng sẽ chạy ngầm không để lộ cửa sổ console.
 
-### Cách 2: Chạy qua dòng lệnh (Terminal)
+### Cách 3: Chạy qua dòng lệnh (Terminal)
 ```powershell
 .\.venv\Scripts\python -m src.main
 ```
 
-### Cách 3: Chế độ Debug
+### Cách 4: Chế độ Debug
 ```powershell
 .\run_debug.bat
 ```
+
+---
+
+## 📦 Đóng gói file thực thi độc lập (.exe)
+
+Để đóng gói lại ứng dụng thành file `.exe` duy nhất bất kỳ lúc nào:
+```powershell
+.\build.bat
+```
+File thực thi độc lập sẽ được tạo ra tại thư mục `dist\FastTranslate.exe`.
 
 ---
 

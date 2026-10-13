@@ -5,6 +5,18 @@ Mọi thay đổi đáng chú ý của dự án FastTranslate sẽ được ghi 
 
 ---
 
+## [1.5.0] - 2026-10-13
+
+### Added
+- **🚀 Đóng gói file thực thi độc lập (Standalone Packaging - FastTranslate.exe)**:
+  - Cấu hình file build spec `FastTranslate.spec` với đầy đủ dependencies (`PySide6`, `winocr`, `winrt`, `PIL`, `pynput`, `deep_translator`...).
+  - Tạo script **`build.bat`** hỗ trợ đóng gói tự động thành 1 file duy nhất `dist/FastTranslate.exe`.
+  - Chạy ngay lập tức trên mọi máy tính Windows mà **không cần cài đặt Python, môi trường ảo (.venv) hay thư viện ngoài**.
+  - Tích hợp chuẩn hóa `sys.frozen` và `sys._MEIPASS` cho icon độ phân giải cao, khởi động cùng Windows (Registry Run trỏ trực tiếp vào exe) và lưu vết log an toàn tại `~/.fast_translate/app.log`.
+  - Chạy ở chế độ Windowed không hiển thị cửa sổ console đen (`console=False`), tối ưu dung lượng và tốc độ khởi chạy.
+
+---
+
 ## [1.4.0] - 2026-10-13
 
 ### Added

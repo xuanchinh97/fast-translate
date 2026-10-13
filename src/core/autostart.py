@@ -8,6 +8,8 @@ APP_NAME = "FastTranslate"
 
 def get_startup_command() -> str:
     """Returns the command line to launch FastTranslate silently on Windows startup"""
+    if getattr(sys, "frozen", False):
+        return f'"{sys.executable}"'
     project_root = Path(__file__).resolve().parent.parent.parent
     pythonw_exe = project_root / ".venv" / "Scripts" / "pythonw.exe"
     main_py = project_root / "src" / "main.py"

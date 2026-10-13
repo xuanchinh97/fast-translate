@@ -5,12 +5,17 @@ import time
 import traceback
 
 # Ensure project root is in sys.path and is current working directory
-PROJECT_ROOT = Path(__file__).resolve().parent.parent
-if str(PROJECT_ROOT) not in sys.path:
-    sys.path.insert(0, str(PROJECT_ROOT))
-os.chdir(PROJECT_ROOT)
+if getattr(sys, "frozen", False):
+    PROJECT_ROOT = Path(sys.executable).resolve().parent
+    LOG_FILE = Path.home() / ".fast_translate" / "app.log"
+else:
+    PROJECT_ROOT = Path(__file__).resolve().parent.parent
+    if str(PROJECT_ROOT) not in sys.path:
+        sys.path.insert(0, str(PROJECT_ROOT))
+    os.chdir(PROJECT_ROOT)
+    LOG_FILE = PROJECT_ROOT / "app.log"
 
-LOG_FILE = PROJECT_ROOT / "app.log"
+LOG_FILE.parent.mkdir(parents=True, exist_ok=True)
 
 
 def log(msg: str):
