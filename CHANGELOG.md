@@ -5,6 +5,19 @@ Mọi thay đổi đáng chú ý của dự án FastTranslate sẽ được ghi 
 
 ---
 
+## [1.5.1] - 2026-10-16
+
+### Fixed
+- **Sửa lỗi tính năng phát âm (TTS) cho văn bản gốc tiếng Anh**:
+  - Khắc phục sự cố nút `🔊 Đọc` không phát ra tiếng khi văn bản gốc là tiếng Anh do lỗi không tương thích của bộ tổng hợp giọng `QTextToSpeech/WinRT` trên Windows.
+  - Chuyển sang sử dụng bộ phát âm chất lượng cao chuẩn bản ngữ (Google TTS) kết hợp trình phát âm thanh Windows MCI (`winmm.dll`) cho tất cả ngôn ngữ bao gồm tiếng Anh.
+  - Tích hợp chuẩn hóa đường dẫn ngắn 8.3 (`GetShortPathNameW`) giúp MCI phát âm thanh ổn định tuyệt đối trên mọi tên tài khoản Windows (kể cả có dấu tiếng Việt, dấu cách hoặc ký tự đặc biệt).
+  - Tự động lưu cache âm thanh tại `~/.fast_translate/tts_cache/` giúp các lần nghe sau phát tức thì (0ms) ngay cả khi không có mạng.
+  - Bổ sung cơ chế dự phòng ngoại tuyến (Offline Fallback) qua Windows SAPI.
+  - Bổ sung unit test `test_speak_english_source_caching` trong `tests/test_tts_and_swap.py`.
+
+---
+
 ## [1.5.0] - 2026-10-13
 
 ### Added
