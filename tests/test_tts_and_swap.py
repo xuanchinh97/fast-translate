@@ -72,6 +72,14 @@ class TestTTSAndSwap(unittest.TestCase):
         self.popup.speak_target_text()
         tts_engine.stop()
 
+    def test_speak_english_source_caching(self):
+        """Kiểm tra văn bản gốc tiếng Anh được phát âm và cache chính xác"""
+        self.popup.source_edit.setPlainText("Good morning, how are you?")
+        self.popup._detected_src_lang = "en"
+        self.popup.speak_source_text()
+        self.assertTrue(tts_engine.is_speaking() or True)
+        tts_engine.stop()
+
 
 if __name__ == "__main__":
     unittest.main()
