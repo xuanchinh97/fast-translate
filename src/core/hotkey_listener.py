@@ -100,14 +100,15 @@ class HotkeyListener(QWidget):
         except Exception:
             pass
 
-        # 2. Also register keyboard module hook as complementary engine
+        # 2. Also register keyboard module hook as complementary engine with suppress=True
+        # (Crucial: suppress=True ensures Alt+D does not reach Chrome/Edge to focus address bar and deselect text!)
         try:
             import keyboard
-            keyboard.add_hotkey(text_hk, self._on_text_pressed, suppress=False)
-            keyboard.add_hotkey(ocr_hk, self._on_ocr_pressed, suppress=False)
+            keyboard.add_hotkey(text_hk, self._on_text_pressed, suppress=True)
+            keyboard.add_hotkey(ocr_hk, self._on_ocr_pressed, suppress=True)
             try:
                 from src.main import log
-                log(f"[Hotkey] Low-level keyboard hook active: Text({text_hk}), OCR({ocr_hk})")
+                log(f"[Hotkey] Low-level keyboard hook active (suppress=True): Text({text_hk}), OCR({ocr_hk})")
             except Exception:
                 pass
         except Exception as e:
