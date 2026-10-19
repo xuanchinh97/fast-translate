@@ -1,6 +1,18 @@
 # ⚡ FastTranslate - Dịch thuật nhanh trên Windows
 
-Phần mềm dịch thuật tức thì chạy ngầm trên Windows với giao diện popup hiện đại, hỗ trợ dịch văn bản bôi đen bất kỳ đâu và chụp màn hình nhận diện chữ (OCR) dịch tự động.
+Phần mềm dịch thuật tức thì chạy ngầm trên Windows với giao diện Dark Mode hiện đại, hỗ trợ dịch văn bản bôi đen bất kỳ đâu (`Alt + D`) và chụp màn hình nhận diện chữ OCR (`Alt + Shift + D`).
+
+---
+
+## 📸 Giao diện phần mềm (Showcase)
+
+### 1. Minh họa dịch tức thì khi bôi đen văn bản (`Alt + D`)
+![Quy trình dịch văn bản bôi đen](docs/images/screen_demo.png)
+
+### 2. Cửa sổ dịch (Popup Window) & Hộp thoại cài đặt (Settings Dialog)
+| Cửa sổ dịch Dark Mode (Phát âm 🔊 & Đổi chiều ⇄) | Giao diện cài đặt phím tắt trực quan (Settings) |
+| :---: | :---: |
+| ![Cửa sổ dịch FastTranslate](docs/images/popup_preview.png) | ![Giao diện cài đặt](docs/images/settings_preview.png) |
 
 ---
 
@@ -43,6 +55,9 @@ Phần mềm dịch thuật tức thì chạy ngầm trên Windows với giao di
 
 4. **Khay hệ thống (System Tray) & Giao diện Cài đặt (Settings Dialog)**:
    - Icon ứng dụng luôn hiển thị ở khay hệ thống (gần đồng hồ Windows).
+   - Menu chuột phải tiện lợi:
+     
+     <img src="docs/images/tray_menu.png" alt="Menu khay hệ thống FastTranslate" width="220" />
    - Mục **"⚙️ Cài đặt..."**: Mở cửa sổ trực quan để đổi phím tắt chỉ bằng cách bấm tổ hợp phím trên bàn phím (không cần sửa file json), đổi ngôn ngữ mặc định, bật/tắt tự khởi động.
    - **Áp dụng tức thì**: Đổi phím tắt có hiệu lực ngay lập tức mà không cần khởi động lại ứng dụng.
    - Nút **"↺ Đặt lại mặc định"** để khôi phục nhanh về cấu hình ban đầu.
