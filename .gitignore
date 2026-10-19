@@ -40,6 +40,7 @@ app.log
 # Temporary debug images & evidence dumps
 *.png
 !assets/*.png
+!docs/images/*.png
 *.jpg
 *.jpeg
 *.bmp
