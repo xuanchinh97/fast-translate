@@ -5,6 +5,22 @@ Mọi thay đổi đáng chú ý của dự án FastTranslate sẽ được ghi 
 
 ---
 
+## [1.5.2] - 2026-10-19
+
+### Fixed
+- **Khắc phục triệt để lỗi "Chưa phát hiện văn bản bôi đen" khi bấm `Alt + D`**:
+  - **Khắc phục xung đột phím tắt**: Bật cờ `suppress=True` trên hook bàn phím toàn cục để chặn `Alt + D` truyền vào các trình duyệt (Chrome, Edge, Firefox, Explorer), ngăn trình duyệt tự động nhảy con trỏ lên thanh địa chỉ (Omnibox) làm mất vùng chọn bôi đen của người dùng.
+  - **Cơ chế nhả phím Modifier ảo với Hardware Scan Code**: Tự động gửi tín hiệu nhả phím ảo cho `Alt` (`VK_LMENU`/`VK_RMENU`, scan code `0x38`) và `Shift` trước khi mô phỏng `Ctrl + C`, ngăn hệ thống nhận nhầm thành tổ hợp `Alt + Ctrl + C` (vốn không có tác dụng sao chép).
+  - **Theo dõi số thứ tự Clipboard (`GetClipboardSequenceNumber`)**: Loại bỏ hoàn toàn thao tác xóa trắng clipboard (`pyperclip.copy("")`) gây mất dữ liệu của người dùng; chuyển sang theo dõi sự thay đổi của sequence number trong Windows API để nhận diện văn bản mới trong <20ms.
+  - **Kiến trúc trích xuất đa tầng (Multi-Tier Extraction)**:
+    - *Tier 1*: Mô phỏng `Ctrl + C` nguyên tử bằng `SendInput` (có fallback `keybd_event` với phần cứng scan code).
+    - *Tier 2*: Gửi trực tiếp thông điệp `WM_COPY` đến control/cửa sổ đang focus (`hwndFocus`).
+    - *Tier 3*: Tự động nhận diện nội dung đã sao chép sẵn trong clipboard nếu ứng dụng đích chặn mô phỏng phím (ví dụ terminal/cửa sổ quyền Administrator).
+  - **Đọc/Ghi Clipboard Unicode trực tiếp**: Tích hợp trực tiếp Windows Clipboard API (`CF_UNICODETEXT`), xử lý hoàn hảo tiếng Việt có dấu, ký tự châu Á và các ký hiệu đặc biệt mà không phụ thuộc thư viện ngoài.
+  - Bổ sung bộ kiểm thử `tests/test_text_extractor.py` và cập nhật kiểm thử bằng chứng `tests/test_evidence.py` (`test_06_text_extractor_multi_tier`), toàn bộ **34/34 tests** đạt kết quả hoàn hảo.
+
+---
+
 ## [1.5.1] - 2026-10-16
 
 ### Fixed

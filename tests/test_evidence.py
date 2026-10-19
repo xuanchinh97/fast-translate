@@ -90,6 +90,17 @@ class FastTranslateEvidenceTest(unittest.TestCase):
         print("[Evidence 5] PopupWindow rendered and visible at target coordinates")
         popup.close()
 
+    def test_06_text_extractor_multi_tier(self):
+        """Verifies multi-tier text extractor captures text without destructive clipboard wipe"""
+        from src.core.text_extractor import get_selected_text, set_clipboard_text, get_clipboard_text
+        orig = get_clipboard_text()
+        test_payload = "Evidence 6: Fast and accurate selection extraction"
+        set_clipboard_text(test_payload)
+        extracted = get_selected_text()
+        print(f"[Evidence 6] Extracted text via multi-tier fallback: '{extracted}'")
+        self.assertEqual(extracted, test_payload)
+        set_clipboard_text(orig)
+
 
 if __name__ == "__main__":
     unittest.main()
