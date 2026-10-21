@@ -10,6 +10,7 @@ from PySide6.QtWidgets import QApplication
 from PySide6.QtCore import Qt, QPoint
 from PySide6.QtGui import QKeyEvent
 from src.ui.popup_window import PopupWindow, SourceTextEdit
+from src.core.translator import TranslationResult
 
 
 class TestPopupEditable(unittest.TestCase):
@@ -78,7 +79,6 @@ class TestPopupEditable(unittest.TestCase):
         self.popup.source_edit.keyPressEvent(event)
         self.assertTrue(len(triggered) == 1, "Esc must emit escape_requested signal")
 
-
     def test_retry_button_visibility_on_error(self):
         """Kiểm tra nút Thử lại: ẩn mặc định, chỉ hiện khi gặp lỗi"""
         self.popup.show()
@@ -86,7 +86,6 @@ class TestPopupEditable(unittest.TestCase):
         self.assertTrue(self.popup.retranslate_btn.isHidden(), "Retry button should be hidden by default")
 
         # Giả lập kết quả lỗi dịch
-        from src.core.translator import TranslationResult
         error_res = TranslationResult(
             original="test",
             translated="",
@@ -110,6 +109,42 @@ class TestPopupEditable(unittest.TestCase):
         )
         self.popup._on_translation_finished(success_res)
         self.assertTrue(self.popup.retranslate_btn.isHidden(), "Retry button must be hidden on success")
+
+    def test_empty_state_display(self):
+        """Kiểm tra show_empty_prompt hiển thị đúng empty state và vô hiệu hóa nút copy"""
+        self.popup.show_empty_prompt(QPoint(100, 100))
+        self.assertEqual(self.popup.source_edit.toPlainText(), "")
+        self.assertEqual(self.popup.target_edit.toPlainText(), "")
+        self.assertEqual(self.popup.target_edit.property("state"), "empty")
+        self.assertFalse(self.popup.copy_btn.isEnabled(), "Copy button must be disabled in empty state")
+        self.assertIn("Chưa phát hiện chữ bôi đen", self.popup.status_label.text())
+
+    def test_copy_button_state_and_visual_feedback(self):
+        """Kiểm tra nút copy: disabled khi lỗi, enabled khi thành công và đổi text khi click"""
+        # 1. Trạng thái lỗi: copy disabled
+        error_res = TranslationResult("hello", "", "EN", "VI", success=False, error_message="Net error")
+        self.popup.source_edit.setPlainText("hello")
+        self.popup._on_translation_finished(error_res)
+        self.assertFalse(self.popup.copy_btn.isEnabled())
+
+        # 2. Trạng thái thành công: copy enabled
+        success_res = TranslationResult("hello", "xin chào", "EN", "VI", success=True)
+        self.popup.source_edit.setPlainText("hello")
+        self.popup._on_translation_finished(success_res)
+        self.assertTrue(self.popup.copy_btn.isEnabled())
+
+        # 3. Click copy -> Đổi nhãn thành "✓ Đã chép!"
+        self.popup.copy_btn.click()
+        self.assertEqual(self.popup.copy_btn.text(), "✓ Đã chép!")
+        self.assertEqual(self.popup.copy_btn.property("copied"), "true")
+
+    def test_keyboard_navigation_shortcuts(self):
+        """Kiểm tra phím tắt Ctrl+T đổi chiều ngôn ngữ từ ngoài popup"""
+        self.assertEqual(self.popup.target_lang.lower(), "vi")
+        event = QKeyEvent(QKeyEvent.Type.KeyPress, Qt.Key.Key_T, Qt.KeyboardModifier.ControlModifier, "")
+        self.popup.keyPressEvent(event)
+        self.assertEqual(self.popup.source_lang.lower(), "vi")
+        self.assertEqual(self.popup.target_lang.lower(), "en")
 
 
 if __name__ == "__main__":

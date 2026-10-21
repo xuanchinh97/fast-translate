@@ -5,6 +5,24 @@ Mọi thay đổi đáng chú ý của dự án FastTranslate sẽ được ghi 
 
 ---
 
+## [1.6.0] - 2026-10-21
+
+### Added
+- **Nâng cấp toàn diện trải nghiệm người dùng (UX) cho cửa sổ Fast Translate**:
+  - **Tách biệt thông báo lỗi và Thử lại trực quan**: Khi gặp sự cố mạng hoặc dịch thất bại, thông báo lỗi kèm biểu tượng cảnh báo rõ ràng xuất hiện tại khung kết quả; nút `↻ Thử lại` được đưa xuống thanh công cụ dưới cùng thay vì đặt cạnh nhãn nguồn, giúp luồng thao tác thuận tự nhiên.
+  - **Cải thiện trạng thái rỗng (Empty State)**: Khi bấm `Alt + D` mà chưa bôi đen chữ, ô kết quả giữ nền mờ tinh gọn với placeholder gợi ý, không nhồi nhét chữ lỗi; thanh trạng thái hướng dẫn nhẹ nhàng: *"Chưa phát hiện chữ bôi đen. Nhập vào ô trên để dịch"*.
+  - **Phản hồi sao chép trực quan (Copy Feedback & State)**: Nút `📋 Sao chép` tự động vô hiệu hóa (disabled) khi ô kết quả rỗng hoặc đang lỗi; khi sao chép thành công, nút chuyển ngay sang màu xanh lá `✓ Đã chép!` và tự động hoàn trả sau 1.5 giây.
+  - **Điều hướng bàn phím toàn diện**:
+    - `Ctrl + Shift + C` (hoặc `Ctrl + C` ngoài ô input): Sao chép nhanh kết quả dịch sang Clipboard.
+    - `Ctrl + T` hoặc `Alt + S`: Hoán đổi nhanh chiều dịch (Auto ➔ Vi sang Vi ➔ En và ngược lại), tự động hoán đổi nội dung 2 ô.
+    - `Ctrl + Enter`: Dịch ngay lập tức mà không cần chờ debounce 600ms.
+    - `Esc`: Đóng cửa sổ nhanh.
+  - **Đánh dấu trực quan cặp ngôn ngữ đang chọn**: Menu chọn ngôn ngữ hiển thị dấu tích `✓` ở cặp ngôn ngữ hiện tại giúp người dùng dễ dàng nhận biết chiều dịch đang kích hoạt.
+  - **Tự động co giãn kích thước cửa sổ theo độ dài nội dung**: Cửa sổ dịch tự động mở rộng chiều cao một cách mượt mà khi văn bản dài (>150 ký tự), tránh cảm giác chật chội và giảm thiểu phải cuộn trang.
+  - Bổ sung 3 unit tests mới cho luồng UX (`test_empty_state_display`, `test_copy_button_state_and_visual_feedback`, `test_keyboard_navigation_shortcuts`), nâng tổng số test cases lên **45/45 tests pass 100%**.
+
+---
+
 ## [1.5.4] - 2026-10-21
 
 ### Added

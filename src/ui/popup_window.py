@@ -1,5 +1,5 @@
 from PySide6.QtCore import Qt, QPoint, QRunnable, QThreadPool, QObject, Signal, QTimer
-from PySide6.QtGui import QCursor, QGuiApplication, QColor, QIcon
+from PySide6.QtGui import QCursor, QGuiApplication, QColor, QIcon, QKeyEvent
 from PySide6.QtWidgets import (
     QWidget, QVBoxLayout, QHBoxLayout, QLabel, QTextEdit,
     QPushButton, QGraphicsDropShadowEffect, QFrame, QSizePolicy, QMenu
@@ -32,19 +32,38 @@ class TranslationTask(QRunnable):
 
 
 class SourceTextEdit(QTextEdit):
-    """QTextEdit hỗ trợ chỉnh sửa văn bản gốc với phím tắt Ctrl+Enter và Esc"""
+    """QTextEdit hỗ trợ chỉnh sửa văn bản gốc với phím tắt điều hướng nhanh"""
     submit_requested = Signal()
     escape_requested = Signal()
+    copy_requested = Signal()
+    swap_requested = Signal()
 
-    def keyPressEvent(self, event):
+    def keyPressEvent(self, event: QKeyEvent):
+        # Esc -> Đóng popup
         if event.key() == Qt.Key.Key_Escape:
             self.escape_requested.emit()
             event.accept()
             return
+
+        # Ctrl+Enter -> Dịch ngay lập tức
         if event.key() in (Qt.Key.Key_Return, Qt.Key.Key_Enter) and (event.modifiers() & Qt.KeyboardModifier.ControlModifier):
             self.submit_requested.emit()
             event.accept()
             return
+
+        # Ctrl+Shift+C -> Sao chép kết quả dịch
+        if event.key() == Qt.Key.Key_C and (event.modifiers() & Qt.KeyboardModifier.ControlModifier) and (event.modifiers() & Qt.KeyboardModifier.ShiftModifier):
+            self.copy_requested.emit()
+            event.accept()
+            return
+
+        # Ctrl+T hoặc Alt+S -> Hoán đổi nhanh chiều dịch
+        if (event.key() == Qt.Key.Key_T and (event.modifiers() & Qt.KeyboardModifier.ControlModifier)) or \
+           (event.key() == Qt.Key.Key_S and (event.modifiers() & Qt.KeyboardModifier.AltModifier)):
+            self.swap_requested.emit()
+            event.accept()
+            return
+
         super().keyPressEvent(event)
 
 
@@ -56,6 +75,7 @@ class PopupWindow(QWidget):
         self._is_programmatic_change = False
         self._last_translated_text = ""
         self._active_translation_task = None
+        self._has_valid_translation = False
 
         # Cặp ngôn ngữ hiện tại
         self.source_lang = config.get("source_lang", "auto")
@@ -110,7 +130,7 @@ class PopupWindow(QWidget):
         # Nút đổi chiều ngôn ngữ (Swap)
         self.swap_lang_btn = QPushButton("⇄")
         self.swap_lang_btn.setObjectName("SwapButton")
-        self.swap_lang_btn.setToolTip("Đổi chiều ngôn ngữ (Anh ⇄ Việt)")
+        self.swap_lang_btn.setToolTip("Đổi chiều ngôn ngữ (Ctrl+T hoặc Alt+S)")
         self.swap_lang_btn.clicked.connect(self.swap_language_direction)
 
         # Badge ngôn ngữ (có thể click để chọn danh sách ngôn ngữ)
@@ -152,12 +172,6 @@ class PopupWindow(QWidget):
         self.speak_source_btn.setToolTip("Nghe phát âm văn bản gốc")
         self.speak_source_btn.clicked.connect(self.speak_source_text)
 
-        self.retranslate_btn = QPushButton("↻ Thử lại")
-        self.retranslate_btn.setObjectName("RetryButton")
-        self.retranslate_btn.setToolTip("Thử dịch lại (Ctrl+Enter)")
-        self.retranslate_btn.clicked.connect(self.trigger_manual_translation)
-        self.retranslate_btn.setVisible(False)
-
         self.clear_btn = QPushButton("✕ Xóa")
         self.clear_btn.setObjectName("SmallActionButton")
         self.clear_btn.setToolTip("Xóa trắng ô nhập liệu")
@@ -166,7 +180,6 @@ class PopupWindow(QWidget):
         source_bar.addWidget(source_title)
         source_bar.addStretch()
         source_bar.addWidget(self.speak_source_btn)
-        source_bar.addWidget(self.retranslate_btn)
         source_bar.addWidget(self.clear_btn)
         card_layout.addLayout(source_bar)
 
@@ -177,9 +190,11 @@ class PopupWindow(QWidget):
         self.source_edit.setAcceptRichText(False)
         self.source_edit.setMinimumHeight(48)
         self.source_edit.setMaximumHeight(75)
-        self.source_edit.setPlaceholderText("Nhập hoặc sửa văn bản cần dịch (Ctrl+Enter)...")
+        self.source_edit.setPlaceholderText("Nhập hoặc sửa văn bản cần dịch (Ctrl+Enter để dịch)...")
         self.source_edit.submit_requested.connect(self.trigger_manual_translation)
         self.source_edit.escape_requested.connect(self.hide)
+        self.source_edit.copy_requested.connect(self.copy_translation)
+        self.source_edit.swap_requested.connect(self.swap_language_direction)
         self.source_edit.textChanged.connect(self._on_source_text_changed)
         card_layout.addWidget(self.source_edit)
 
@@ -187,7 +202,7 @@ class PopupWindow(QWidget):
         self.target_edit = QTextEdit()
         self.target_edit.setObjectName("TranslatedText")
         self.target_edit.setReadOnly(True)
-        self.target_edit.setPlaceholderText("Đang dịch...")
+        self.target_edit.setPlaceholderText("Bản dịch sẽ hiển thị tại đây...")
         card_layout.addWidget(self.target_edit)
 
         # --- Footer ---
@@ -197,6 +212,13 @@ class PopupWindow(QWidget):
         self.status_label = QLabel("")
         self.status_label.setStyleSheet("color: #71717a; font-size: 11px;")
 
+        # Nút Thử lại đặt cạnh status bar tại khung kết quả dịch
+        self.retranslate_btn = QPushButton("↻ Thử lại")
+        self.retranslate_btn.setObjectName("RetryButton")
+        self.retranslate_btn.setToolTip("Thử dịch lại (Ctrl+Enter)")
+        self.retranslate_btn.clicked.connect(self.trigger_manual_translation)
+        self.retranslate_btn.setVisible(False)
+
         # Nút phát âm bản dịch
         self.speak_target_btn = QPushButton("🔊 Đọc")
         self.speak_target_btn.setObjectName("SmallActionButton")
@@ -205,9 +227,12 @@ class PopupWindow(QWidget):
 
         self.copy_btn = QPushButton("📋 Sao chép")
         self.copy_btn.setObjectName("CopyButton")
+        self.copy_btn.setToolTip("Sao chép bản dịch (Ctrl+Shift+C)")
         self.copy_btn.clicked.connect(self.copy_translation)
+        self.copy_btn.setEnabled(False)
 
         footer.addWidget(self.status_label)
+        footer.addWidget(self.retranslate_btn)
         footer.addStretch()
         footer.addWidget(self.speak_target_btn)
         footer.addWidget(self.copy_btn)
@@ -231,13 +256,24 @@ class PopupWindow(QWidget):
 
     def copy_translation(self):
         text = self.target_edit.toPlainText().strip()
-        if text:
-            try:
-                pyperclip.copy(text)
-                self.copy_btn.setText("✓ Đã chép!")
-                QTimer.singleShot(1500, lambda: self.copy_btn.setText("📋 Sao chép"))
-            except Exception as e:
-                print(f"[Popup] Copy error: {e}")
+        state = self.target_edit.property("state")
+        if not text or state in ("error", "empty", "translating"):
+            return
+        try:
+            pyperclip.copy(text)
+            self.copy_btn.setText("✓ Đã chép!")
+            self.copy_btn.setProperty("copied", "true")
+            self.copy_btn.style().unpolish(self.copy_btn)
+            self.copy_btn.style().polish(self.copy_btn)
+            QTimer.singleShot(1500, self._reset_copy_btn)
+        except Exception as e:
+            print(f"[Popup] Copy error: {e}")
+
+    def _reset_copy_btn(self):
+        self.copy_btn.setText("📋 Sao chép")
+        self.copy_btn.setProperty("copied", "false")
+        self.copy_btn.style().unpolish(self.copy_btn)
+        self.copy_btn.style().polish(self.copy_btn)
 
     def position_smartly(self, target_pos: QPoint = None):
         """Position the popup near cursor or target point, avoiding screen overflow"""
@@ -270,6 +306,21 @@ class PopupWindow(QWidget):
 
         self.move(x, y)
 
+    def _adjust_window_size_to_content(self, text_len: int):
+        """Tự động mở rộng chiều cao cửa sổ nhẹ khi nội dung dài để dễ đọc"""
+        base_h = 275
+        if text_len > 150:
+            target_h = min(420, base_h + (text_len - 150) // 4)
+        else:
+            target_h = base_h
+        if self.height() != target_h:
+            self.resize(self.width(), target_h)
+
+    def _set_target_state(self, state: str):
+        self.target_edit.setProperty("state", state)
+        self.target_edit.style().unpolish(self.target_edit)
+        self.target_edit.style().polish(self.target_edit)
+
     def _on_source_text_changed(self):
         """Xử lý khi người dùng chỉnh sửa văn bản trong ô input"""
         if self._is_programmatic_change:
@@ -277,7 +328,12 @@ class PopupWindow(QWidget):
 
         text = self.source_edit.toPlainText().strip()
         if not text:
-            self.status_label.setText("0 ký tự")
+            self.status_label.setText("0 ký tự | Sẵn sàng nhập liệu")
+            self._has_valid_translation = False
+            self.copy_btn.setEnabled(False)
+            self._set_target_state("empty")
+            self.target_edit.setPlainText("")
+            self.retranslate_btn.setVisible(False)
             self._debounce_timer.stop()
             return
 
@@ -288,7 +344,10 @@ class PopupWindow(QWidget):
         """Kích hoạt dịch tự động sau khi người dùng ngừng gõ 600ms"""
         text = self.source_edit.toPlainText().strip()
         if not text:
-            self.target_edit.setPlainText("Nhập nội dung vào ô trên để dịch...")
+            self._set_target_state("empty")
+            self.target_edit.setPlainText("")
+            self._has_valid_translation = False
+            self.copy_btn.setEnabled(False)
             return
         if text == self._last_translated_text:
             return
@@ -299,7 +358,7 @@ class PopupWindow(QWidget):
         self._debounce_timer.stop()
         text = self.source_edit.toPlainText().strip()
         if not text:
-            self.target_edit.setPlainText("Vui lòng nhập nội dung cần dịch vào ô trên.")
+            self.status_label.setText("Vui lòng nhập văn bản cần dịch")
             self.source_edit.setFocus()
             return
         self._trigger_translation(text)
@@ -312,9 +371,12 @@ class PopupWindow(QWidget):
         self.source_edit.setPlainText("")
         self._is_programmatic_change = False
         self._last_translated_text = ""
+        self._has_valid_translation = False
+        self.copy_btn.setEnabled(False)
         self.retranslate_btn.setVisible(False)
-        self.target_edit.setPlainText("Đã xóa nội dung. Nhập văn bản mới để dịch...")
-        self.status_label.setText("0 ký tự")
+        self._set_target_state("empty")
+        self.target_edit.setPlainText("")
+        self.status_label.setText("0 ký tự | Sẵn sàng nhập liệu")
         self._update_lang_badge_display()
         self.source_edit.setFocus()
 
@@ -334,8 +396,9 @@ class PopupWindow(QWidget):
         # Hoán đổi nội dung 2 ô nếu đã có kết quả dịch
         src_text = self.source_edit.toPlainText().strip()
         tgt_text = self.target_edit.toPlainText().strip()
+        tgt_state = self.target_edit.property("state")
 
-        if tgt_text and not tgt_text.startswith("⏳") and not tgt_text.startswith("Chưa") and not tgt_text.startswith("Đang") and not tgt_text.startswith("Đã"):
+        if tgt_text and tgt_state not in ("error", "translating"):
             self._is_programmatic_change = True
             self.source_edit.setPlainText(tgt_text)
             self._is_programmatic_change = False
@@ -344,21 +407,26 @@ class PopupWindow(QWidget):
             self._trigger_translation(src_text)
 
     def show_language_menu(self):
-        """Hiển thị menu chọn các cặp ngôn ngữ phổ biến"""
+        """Hiển thị menu chọn các cặp ngôn ngữ phổ biến có dấu ✓ tích trực quan"""
         menu = QMenu(self)
-        actions = [
-            ("🌐 Tự động ➔ Tiếng Việt (AUTO ➔ VI)", "auto", "vi"),
-            ("🔄 Tiếng Việt ➔ Tiếng Anh (VI ➔ EN)", "vi", "en"),
-            ("🇺🇸 Tiếng Anh ➔ Tiếng Việt (EN ➔ VI)", "en", "vi"),
-            ("🇯🇵 Tự động ➔ Tiếng Nhật (AUTO ➔ JA)", "auto", "ja"),
-            ("🇰🇷 Tự động ➔ Tiếng Hàn (AUTO ➔ KO)", "auto", "ko"),
-            ("🇨🇳 Tự động ➔ Tiếng Trung (AUTO ➔ ZH-CN)", "auto", "zh-cn"),
-            ("🇫🇷 Tự động ➔ Tiếng Pháp (AUTO ➔ FR)", "auto", "fr"),
+        pairs = [
+            ("Tự động ➔ Tiếng Việt", "auto", "vi"),
+            ("Tiếng Việt ➔ Tiếng Anh", "vi", "en"),
+            ("Tiếng Anh ➔ Tiếng Việt", "en", "vi"),
+            ("Tự động ➔ Tiếng Nhật", "auto", "ja"),
+            ("Tự động ➔ Tiếng Hàn", "auto", "ko"),
+            ("Tự động ➔ Tiếng Trung", "auto", "zh-cn"),
+            ("Tự động ➔ Tiếng Pháp", "auto", "fr"),
         ]
 
-        for label, src, tgt in actions:
-            action = menu.addAction(label)
-            action.triggered.connect(lambda checked=False, s=src, t=tgt: self.set_language_pair(s, t))
+        curr_src = self.source_lang.lower()
+        curr_tgt = self.target_lang.lower()
+
+        for label, s, t in pairs:
+            is_active = (s == curr_src and t == curr_tgt)
+            prefix = "✓  " if is_active else "    "
+            action = menu.addAction(f"{prefix}{label}")
+            action.triggered.connect(lambda checked=False, src=s, tgt=t: self.set_language_pair(src, tgt))
 
         menu.exec(self.lang_badge.mapToGlobal(QPoint(0, self.lang_badge.height() + 4)))
 
@@ -401,7 +469,8 @@ class PopupWindow(QWidget):
             return
 
         text = self.target_edit.toPlainText().strip()
-        if not text or text.startswith("⏳") or text.startswith("Chưa") or text.startswith("Đang") or text.startswith("Đã"):
+        state = self.target_edit.property("state")
+        if not text or state in ("error", "empty", "translating"):
             return
         lang = self.target_lang or "vi"
         self._current_speaking_target = "target"
@@ -444,7 +513,10 @@ class PopupWindow(QWidget):
     def _trigger_translation(self, text: str):
         """Bắt đầu tác vụ dịch ngầm"""
         self.retranslate_btn.setVisible(False)
+        self._has_valid_translation = False
+        self.copy_btn.setEnabled(False)
         self._last_translated_text = text
+        self._set_target_state("translating")
         self.target_edit.setPlainText("⏳ Đang dịch...")
         self._update_lang_badge_display()
         self.status_label.setText(f"{len(text)} ký tự - Đang dịch...")
@@ -462,12 +534,13 @@ class PopupWindow(QWidget):
         self.source_edit.setPlainText("")
         self._is_programmatic_change = False
         self._last_translated_text = ""
+        self._has_valid_translation = False
+        self.copy_btn.setEnabled(False)
 
-        self.target_edit.setPlainText(
-            "Chưa phát hiện văn bản bôi đen.\n👉 Bạn có thể gõ trực tiếp vào ô trên (Ctrl+Enter để dịch)."
-        )
+        self._set_target_state("empty")
+        self.target_edit.setPlainText("")
         self._update_lang_badge_display()
-        self.status_label.setText("Sẵn sàng nhập liệu")
+        self.status_label.setText("💡 Chưa phát hiện chữ bôi đen. Nhập vào ô trên để dịch.")
         self.position_smartly(target_pos)
         self.show()
         self.raise_()
@@ -481,6 +554,7 @@ class PopupWindow(QWidget):
             self.show_empty_prompt(target_pos)
             return
 
+        self._adjust_window_size_to_content(len(text))
         self._debounce_timer.stop()
         self._is_programmatic_change = True
         self.source_edit.setPlainText(text)
@@ -499,19 +573,27 @@ class PopupWindow(QWidget):
             return
 
         if result.success:
+            self._has_valid_translation = True
             self.retranslate_btn.setVisible(False)
+            self._set_target_state("normal")
             self.target_edit.setPlainText(result.translated)
             self._detected_src_lang = result.source_lang.lower()
             self._update_lang_badge_display()
             self.status_label.setText(f"{len(current_text)} ký tự - Đã dịch")
+            self.copy_btn.setEnabled(True)
         else:
+            self._has_valid_translation = False
             self.retranslate_btn.setVisible(True)
-            self.target_edit.setPlainText(result.error_message or "Dịch không thành công")
+            self._set_target_state("error")
+            err_msg = result.error_message or "Không thể kết nối máy chủ dịch."
+            self.target_edit.setPlainText(f"⚠️ {err_msg}\nVui lòng kiểm tra kết nối mạng và bấm '↻ Thử lại'.")
             self.lang_badge.setText("LỖI")
-            self.status_label.setText("Lỗi dịch thuật")
+            self.status_label.setText("Lỗi kết nối dịch thuật")
+            self.copy_btn.setEnabled(False)
 
     def hide(self):
         tts_engine.stop()
+        self._reset_copy_btn()
         super().hide()
 
     # Drag window support
@@ -541,8 +623,19 @@ class PopupWindow(QWidget):
         if not self.isActiveWindow() and not self.is_pinned:
             self.hide()
 
-    def keyPressEvent(self, event):
+    def keyPressEvent(self, event: QKeyEvent):
         if event.key() == Qt.Key.Key_Escape:
             self.hide()
-        else:
-            super().keyPressEvent(event)
+            return
+        # Cho phép phím tắt ngoài ô input: Ctrl+C / Ctrl+Shift+C để copy bản dịch
+        if event.key() == Qt.Key.Key_C and (event.modifiers() & Qt.KeyboardModifier.ControlModifier):
+            self.copy_translation()
+            event.accept()
+            return
+        # Ctrl+T / Alt+S để hoán đổi chiều dịch
+        if (event.key() == Qt.Key.Key_T and (event.modifiers() & Qt.KeyboardModifier.ControlModifier)) or \
+           (event.key() == Qt.Key.Key_S and (event.modifiers() & Qt.KeyboardModifier.AltModifier)):
+            self.swap_language_direction()
+            event.accept()
+            return
+        super().keyPressEvent(event)
