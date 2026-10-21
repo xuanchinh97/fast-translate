@@ -449,8 +449,11 @@ class PopupWindow(QWidget):
 
     def speak_source_text(self):
         """Phát âm hoặc dừng phát âm văn bản gốc (Bấm lần 2 để dừng)"""
-        if tts_engine.is_speaking() and self._current_speaking_target == "source":
+        if self.speak_source_btn.text() == "⏹ Dừng" or (tts_engine.is_speaking() and self._current_speaking_target == "source"):
             tts_engine.stop()
+            self._current_speaking_target = None
+            self._update_tts_buttons_state()
+            self.status_label.setText("Đã dừng phát âm")
             return
 
         text = self.source_edit.toPlainText().strip()
@@ -464,8 +467,11 @@ class PopupWindow(QWidget):
 
     def speak_target_text(self):
         """Phát âm hoặc dừng phát âm bản dịch (Bấm lần 2 để dừng)"""
-        if tts_engine.is_speaking() and self._current_speaking_target == "target":
+        if self.speak_target_btn.text() == "⏹ Dừng" or (tts_engine.is_speaking() and self._current_speaking_target == "target"):
             tts_engine.stop()
+            self._current_speaking_target = None
+            self._update_tts_buttons_state()
+            self.status_label.setText("Đã dừng phát âm")
             return
 
         text = self.target_edit.toPlainText().strip()

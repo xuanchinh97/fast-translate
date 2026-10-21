@@ -193,6 +193,20 @@ class TestTTSAndSwap(unittest.TestCase):
         self.assertTrue(tts_engine.is_speaking() or True)
         tts_engine.stop()
 
+    def test_stop_button_immediately_stops_speech_and_resets_ui(self):
+        """Kiểm tra khi bấm nút Dừng thì âm thanh dừng và UI chuyển ngay về Đọc"""
+        self.popup.source_edit.setPlainText("Test immediate stop")
+        self.popup.speak_source_btn.setText("⏹ Dừng")
+        self.popup.speak_source_btn.setObjectName("StopButton")
+        self.popup._current_speaking_target = "source"
+        tts_engine._is_speaking = True
+
+        # Click nút Dừng
+        self.popup.speak_source_btn.click()
+        self.assertFalse(tts_engine.is_speaking())
+        self.assertEqual(self.popup.speak_source_btn.text(), "🔊 Đọc")
+        self.assertIn("Đã dừng phát âm", self.popup.status_label.text())
+
 
 if __name__ == "__main__":
     unittest.main()

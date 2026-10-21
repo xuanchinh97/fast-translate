@@ -1,6 +1,7 @@
 import os
 import sys
 import re
+import time
 import ctypes
 import hashlib
 import urllib.parse
@@ -152,7 +153,7 @@ class TTSTask(QRunnable):
                 break
 
             # Play audio via Windows MCI with unique alias per task
-            alias = "ft_tts"
+            alias = f"ft_tts_{self.generation}_{idx}"
             short_path = get_short_path(mp3_path)
             winmm.mciSendStringW(f"close {alias}", None, 0, None)
             open_cmd = f'open "{short_path}" type mpegvideo alias {alias}'
@@ -162,9 +163,26 @@ class TTSTask(QRunnable):
                 ret = winmm.mciSendStringW(open_cmd, None, 0, None)
 
             if ret == 0:
-                winmm.mciSendStringW(f"play {alias} wait", None, 0, None)
-                winmm.mciSendStringW(f"close {alias}", None, 0, None)
-                played_any = True
+                # Non-blocking play kèm polling loop để ngắt tức thì khi user bấm Dừng (<40ms)
+                winmm.mciSendStringW(f"play {alias}", None, 0, None)
+                status_buf = ctypes.create_unicode_buffer(128)
+                while True:
+                    if not self.is_active(self.generation):
+                        winmm.mciSendStringW(f"stop {alias}", None, 0, None)
+                        winmm.mciSendStringW(f"close {alias}", None, 0, None)
+                        all_success = False
+                        break
+                    winmm.mciSendStringW(f"status {alias} mode", status_buf, 128, None)
+                    mode = status_buf.value.lower()
+                    if mode in ("stopped", ""):
+                        winmm.mciSendStringW(f"close {alias}", None, 0, None)
+                        played_any = True
+                        break
+                    time.sleep(0.04)
+
+                if not self.is_active(self.generation):
+                    all_success = False
+                    break
             else:
                 all_success = False
                 break
@@ -192,6 +210,7 @@ class TTSEngine(QObject):
         self._qt_tts: Optional[QTextToSpeech] = None
         self._is_speaking = False
         self._current_generation = 0
+        self._offline_process: Optional[subprocess.Popen] = None
         self.cache_dir = Path.home() / ".fast_translate" / "tts_cache"
         self.cache_dir.mkdir(parents=True, exist_ok=True)
         self.thread_pool = QThreadPool.globalInstance()
@@ -225,8 +244,8 @@ class TTSEngine(QObject):
     def stop(self):
         self._current_generation += 1
         try:
-            winmm.mciSendStringW("stop ft_tts", None, 0, None)
-            winmm.mciSendStringW("close ft_tts", None, 0, None)
+            winmm.mciSendStringW("stop all", None, 0, None)
+            winmm.mciSendStringW("close all", None, 0, None)
         except Exception:
             pass
         if self._qt_tts and self._qt_tts.state() == QTextToSpeech.State.Speaking:
@@ -234,6 +253,13 @@ class TTSEngine(QObject):
                 self._qt_tts.stop()
             except Exception:
                 pass
+        if self._offline_process and self._offline_process.poll() is None:
+            try:
+                self._offline_process.terminate()
+                self._offline_process.kill()
+            except Exception:
+                pass
+            self._offline_process = None
         if self._is_speaking:
             self._is_speaking = False
             self.speaking_finished.emit()
@@ -263,7 +289,7 @@ class TTSEngine(QObject):
         self.thread_pool.start(task)
 
     def _speak_offline_fallback(self, text: str, lang_code: str, gen: int):
-        """Offline fallback using Windows SAPI / PowerShell"""
+        """Offline fallback using Windows SAPI / PowerShell with immediate interrupt support"""
         if not self._is_generation_active(gen):
             return
         print(f"[TTS] Invoking offline voice fallback for lang={lang_code}...")
@@ -271,11 +297,21 @@ class TTSEngine(QObject):
             escaped = text.replace("'", "''")[:300]
             cmd = f"(New-Object -ComObject SAPI.SpVoice).Speak('{escaped}')"
             flags = getattr(subprocess, "CREATE_NO_WINDOW", 0x08000000)
-            subprocess.run(
+            proc = subprocess.Popen(
                 ["powershell", "-NoProfile", "-NonInteractive", "-Command", cmd],
                 creationflags=flags,
-                timeout=10,
             )
+            self._offline_process = proc
+            while proc.poll() is None:
+                if not self._is_generation_active(gen):
+                    try:
+                        proc.terminate()
+                        proc.kill()
+                    except Exception:
+                        pass
+                    break
+                time.sleep(0.05)
+            self._offline_process = None
         except Exception as e:
             print(f"[TTS] Offline fallback failed: {e}")
 

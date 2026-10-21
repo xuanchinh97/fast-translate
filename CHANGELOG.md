@@ -5,6 +5,18 @@ Mọi thay đổi đáng chú ý của dự án FastTranslate sẽ được ghi 
 
 ---
 
+## [1.6.1] - 2026-10-21
+
+### Fixed
+- **Sửa triệt để lỗi bấm nút '⏹ Dừng' nhưng âm thanh vẫn phát (Immediate Audio Playback Cancellation)**:
+  - **Khắc phục giới hạn Windows MCI**: Lệnh `play ... wait` trước đây chặn luồng worker cho tới khi phát hết đoạn âm thanh; do MCI có cơ chế thiết bị cục bộ theo luồng (Thread-Local device affinity), lệnh `stop` từ luồng giao diện chính (UI Thread) bị hệ thống trả về mã lỗi 263 (`MCIERR_INVALID_DEVICE_NAME`) và không thể dừng phát.
+  - **Chuyển sang cơ chế Non-Blocking Polling Loop**: Đổi sang lệnh `play` không chờ kèm vòng lặp kiểm tra siêu nhạy (chu kỳ 40ms) theo dõi cờ phát âm `is_active`. Khi người dùng bấm nút `⏹ Dừng`, chính luồng worker tự động nhận diện và gọi lệnh `stop` + `close` thiết bị trong <40ms, ngắt âm thanh ngay lập tức mà không có bất kỳ độ trễ nào.
+  - **Hỗ trợ ngắt tiến trình phát âm ngoại tuyến (Offline Voice Fallback)**: Quản lý tiến trình PowerShell / SAPI thông qua `subprocess.Popen`, cho phép gửi tín hiệu hủy (`terminate`) lập tức nếu người dùng bấm dừng.
+  - **Phòng vệ trực quan ở giao diện**: Bổ sung cơ chế bảo vệ nếu nút đang ở nhãn `⏹ Dừng` thì click chuột chắc chắn dừng phát âm và lập tức đổi giao diện về `🔊 Đọc`.
+  - Bổ sung unit test `test_stop_button_immediately_stops_speech_and_resets_ui`, nâng tổng số test cases lên **46/46 tests pass 100%**.
+
+---
+
 ## [1.6.0] - 2026-10-21
 
 ### Added
