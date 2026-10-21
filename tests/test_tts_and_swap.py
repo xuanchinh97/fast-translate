@@ -103,6 +103,48 @@ class TestTTSAndSwap(unittest.TestCase):
         finally:
             tts_engine.speak = orig_speak
 
+    def test_tts_button_toggle_to_stop_source(self):
+        """
+        Khi đang phát âm văn bản gốc:
+        - Nút speak_source_btn đổi thành '⏹ Dừng'
+        - Click tiếp vào speak_source_btn sẽ dừng phát âm và khôi phục về '🔊 Đọc'
+        """
+        self.popup.source_edit.setPlainText("Testing speech playback stop")
+        self.popup._current_speaking_target = "source"
+        tts_engine._is_speaking = True
+        self.popup._on_speaking_started()
+
+        self.assertEqual(self.popup.speak_source_btn.text(), "⏹ Dừng")
+        self.assertEqual(self.popup.speak_source_btn.objectName(), "StopButton")
+        self.assertEqual(self.popup.speak_target_btn.text(), "🔊 Đọc")
+
+        # Click để dừng
+        self.popup.speak_source_btn.click()
+        self.assertFalse(tts_engine.is_speaking())
+        self.assertEqual(self.popup.speak_source_btn.text(), "🔊 Đọc")
+        self.assertEqual(self.popup.speak_source_btn.objectName(), "SmallActionButton")
+
+    def test_tts_button_toggle_to_stop_target(self):
+        """
+        Khi đang phát âm bản dịch:
+        - Nút speak_target_btn đổi thành '⏹ Dừng'
+        - Click tiếp vào speak_target_btn sẽ dừng phát âm và khôi phục về '🔊 Đọc'
+        """
+        self.popup.target_edit.setPlainText("Kiểm tra tính năng dừng phát âm")
+        self.popup._current_speaking_target = "target"
+        tts_engine._is_speaking = True
+        self.popup._on_speaking_started()
+
+        self.assertEqual(self.popup.speak_target_btn.text(), "⏹ Dừng")
+        self.assertEqual(self.popup.speak_target_btn.objectName(), "StopButton")
+        self.assertEqual(self.popup.speak_source_btn.text(), "🔊 Đọc")
+
+        # Click để dừng
+        self.popup.speak_target_btn.click()
+        self.assertFalse(tts_engine.is_speaking())
+        self.assertEqual(self.popup.speak_target_btn.text(), "🔊 Đọc")
+        self.assertEqual(self.popup.speak_target_btn.objectName(), "SmallActionButton")
+
     def test_swap_language_direction(self):
         """Kiểm tra nút đổi chiều ngôn ngữ VI <-> EN"""
         self.assertEqual(self.popup.target_lang.lower(), "vi")

@@ -5,6 +5,17 @@ Mọi thay đổi đáng chú ý của dự án FastTranslate sẽ được ghi 
 
 ---
 
+## [1.5.4] - 2026-10-21
+
+### Added
+- **Nút phát âm chuyển đổi linh hoạt (Toggle Play / Stop - 🔊 Đọc ⇄ ⏹ Dừng)**:
+  - Khi người dùng bấm 🔊 Đọc ở văn bản gốc hoặc bản dịch, nút tương ứng lập tức chuyển thành **⏹ Dừng** với màu cảnh báo trực quan (#ef4444).
+  - Bấm vào ⏹ Dừng sẽ dừng phát âm thanh ngay lập tức (cả âm thanh cục bộ lẫn qua mạng).
+  - Tự động hoàn trả về trạng thái 🔊 Đọc ban đầu khi hoàn thành phát âm xong toàn bộ văn bản hoặc khi đóng popup.
+  - Bổ sung 2 unit test 	est_tts_button_toggle_to_stop_source và 	est_tts_button_toggle_to_stop_target, nâng tổng số test cases lên **42/42 tests pass 100%**.
+
+---
+
 ## [1.5.3] - 2026-10-21
 
 ### Fixed

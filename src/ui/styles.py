@@ -112,6 +112,26 @@ QPushButton#SmallActionButton:pressed {
     background-color: #20202a;
 }
 
+QPushButton#StopButton {
+    background-color: #3b1820;
+    border: 1px solid #ef4444;
+    border-radius: 5px;
+    color: #fca5a5;
+    font-size: 10px;
+    padding: 2px 7px;
+    font-weight: 600;
+}
+
+QPushButton#StopButton:hover {
+    background-color: #dc2626;
+    color: #ffffff;
+    border-color: #f87171;
+}
+
+QPushButton#StopButton:pressed {
+    background-color: #991b1b;
+}
+
 QPushButton#RetryButton {
     background-color: #3b2323;
     border: 1px solid #ef4444;
