@@ -1,12 +1,13 @@
 import os
 import sys
+import re
 import ctypes
 import hashlib
 import urllib.parse
 import urllib.request
 import subprocess
 from pathlib import Path
-from typing import Optional, Callable
+from typing import Optional, Callable, List
 
 from PySide6.QtCore import QObject, Signal, QRunnable, QThreadPool
 from PySide6.QtTextToSpeech import QTextToSpeech
@@ -24,71 +25,160 @@ def get_short_path(path: Path) -> str:
     return path_str
 
 
+def split_text_into_chunks(text: str, max_chars: int = 180) -> List[str]:
+    """
+    Chia đoạn văn bản dài thành các phân đoạn ngắn tự nhiên theo dấu câu hoặc từ,
+    đảm bảo URL request đến Google TTS không bị tràn giới hạn và đọc trọn vẹn văn bản.
+    """
+    text = text.strip()
+    if not text:
+        return []
+    if len(text) <= max_chars:
+        return [text]
+
+    # Tách theo ranh giới câu (. ! ? ; \n)
+    raw_sentences = re.split(r"(?<=[.!?;\n])\s+", text)
+    chunks: List[str] = []
+    current_chunk = ""
+
+    for s in raw_sentences:
+        s = s.strip()
+        if not s:
+            continue
+        if len(s) > max_chars:
+            # Nếu trước đó đang có current_chunk gom dở, flush ra trước để bảo toàn thứ tự
+            if current_chunk:
+                chunks.append(current_chunk)
+                current_chunk = ""
+
+            # Câu đơn lẻ quá dài -> tách theo từ
+            words = s.split(" ")
+            sub_chunk = ""
+            for w in words:
+                if not w:
+                    continue
+                if len(sub_chunk) + len(w) + 1 <= max_chars:
+                    sub_chunk = (sub_chunk + " " + w).strip()
+                else:
+                    if sub_chunk:
+                        chunks.append(sub_chunk)
+                    sub_chunk = w
+            if sub_chunk:
+                chunks.append(sub_chunk)
+        else:
+            if len(current_chunk) + len(s) + 1 <= max_chars:
+                current_chunk = (current_chunk + " " + s).strip()
+            else:
+                if current_chunk:
+                    chunks.append(current_chunk)
+                current_chunk = s
+
+    if current_chunk:
+        chunks.append(current_chunk)
+
+    return chunks
+
+
 class TTSTask(QRunnable):
     def __init__(
         self,
         text: str,
         lang: str,
         cache_dir: Path,
-        on_finish_callback: Optional[Callable] = None,
-        offline_fallback_callback: Optional[Callable] = None,
+        generation: int,
+        is_generation_active_callback: Callable[[int], bool],
+        on_finish_callback: Optional[Callable[[int], None]] = None,
+        offline_fallback_callback: Optional[Callable[[str, str, int], None]] = None,
     ):
         super().__init__()
         self.text = text
         self.lang = lang.lower()
         self.cache_dir = cache_dir
+        self.generation = generation
+        self.is_active = is_generation_active_callback
         self.on_finish = on_finish_callback
         self.offline_fallback = offline_fallback_callback
 
-    def run(self):
-        played_successfully = False
-        try:
-            # Create hash for filename caching
-            cache_key = hashlib.md5(f"{self.lang}:{self.text}".encode("utf-8")).hexdigest()
-            mp3_path = self.cache_dir / f"{cache_key}.mp3"
+    def _download_chunk(self, chunk_text: str) -> Optional[Path]:
+        cache_key = hashlib.md5(f"{self.lang}:{chunk_text}".encode("utf-8")).hexdigest()
+        mp3_path = self.cache_dir / f"{cache_key}.mp3"
+        if mp3_path.exists() and mp3_path.stat().st_size > 0:
+            return mp3_path
 
-            # Download if not in cache
-            if not mp3_path.exists():
-                encoded_q = urllib.parse.quote(self.text[:250])  # Limit to 250 chars for TTS safety
-                url = f"https://translate.google.com/translate_tts?ie=UTF-8&tl={self.lang}&client=tw-ob&q={encoded_q}"
-                req = urllib.request.Request(
-                    url,
-                    headers={
-                        "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36"
-                    }
-                )
-                with urllib.request.urlopen(req, timeout=4.5) as resp:
-                    audio_data = resp.read()
+        try:
+            encoded_q = urllib.parse.quote(chunk_text)
+            url = f"https://translate.google.com/translate_tts?ie=UTF-8&tl={self.lang}&client=tw-ob&q={encoded_q}"
+            req = urllib.request.Request(
+                url,
+                headers={
+                    "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36"
+                }
+            )
+            with urllib.request.urlopen(req, timeout=5.0) as resp:
+                audio_data = resp.read()
+                if audio_data:
                     with open(mp3_path, "wb") as f:
                         f.write(audio_data)
+                    return mp3_path
+        except Exception as e:
+            print(f"[TTS] Download chunk failed: {e}")
+        return None
 
-            # Play audio via Windows MCI
+    def run(self):
+        if not self.is_active(self.generation):
+            return
+
+        chunks = split_text_into_chunks(self.text, max_chars=180)
+        if not chunks:
+            if self.on_finish:
+                self.on_finish(self.generation)
+            return
+
+        played_any = False
+        all_success = True
+
+        for idx, chunk in enumerate(chunks):
+            if not self.is_active(self.generation):
+                all_success = False
+                break
+
+            mp3_path = self._download_chunk(chunk)
+            if not mp3_path or not mp3_path.exists():
+                all_success = False
+                break
+
+            if not self.is_active(self.generation):
+                all_success = False
+                break
+
+            # Play audio via Windows MCI with unique alias per task
+            alias = "ft_tts"
             short_path = get_short_path(mp3_path)
-            winmm.mciSendStringW("close ft_tts", None, 0, None)
-            open_cmd = f'open "{short_path}" type mpegvideo alias ft_tts'
+            winmm.mciSendStringW(f"close {alias}", None, 0, None)
+            open_cmd = f'open "{short_path}" type mpegvideo alias {alias}'
             ret = winmm.mciSendStringW(open_cmd, None, 0, None)
             if ret != 0:
-                # Try with resolved path as fallback
-                open_cmd = f'open "{mp3_path.resolve()}" type mpegvideo alias ft_tts'
+                open_cmd = f'open "{mp3_path.resolve()}" type mpegvideo alias {alias}'
                 ret = winmm.mciSendStringW(open_cmd, None, 0, None)
 
             if ret == 0:
-                winmm.mciSendStringW("play ft_tts wait", None, 0, None)
-                winmm.mciSendStringW("close ft_tts", None, 0, None)
-                played_successfully = True
-        except Exception as e:
-            print(f"[TTS] High-quality audio playback failed: {e}")
+                winmm.mciSendStringW(f"play {alias} wait", None, 0, None)
+                winmm.mciSendStringW(f"close {alias}", None, 0, None)
+                played_any = True
+            else:
+                all_success = False
+                break
 
-        # If online / MCI failed (e.g. offline with no cached audio), trigger offline fallback
-        if not played_successfully and self.offline_fallback:
+        # Nếu online / MCI không phát được mẩu nào (e.g. offline không có cache), kích hoạt offline fallback
+        if not played_any and self.is_active(self.generation) and self.offline_fallback:
             try:
-                self.offline_fallback(self.text, self.lang)
+                self.offline_fallback(self.text, self.lang, self.generation)
             except Exception as ex:
                 print(f"[TTS] Offline fallback failed: {ex}")
 
         if self.on_finish:
             try:
-                self.on_finish()
+                self.on_finish(self.generation)
             except RuntimeError:
                 pass
 
@@ -101,6 +191,7 @@ class TTSEngine(QObject):
         super().__init__()
         self._qt_tts: Optional[QTextToSpeech] = None
         self._is_speaking = False
+        self._current_generation = 0
         self.cache_dir = Path.home() / ".fast_translate" / "tts_cache"
         self.cache_dir.mkdir(parents=True, exist_ok=True)
         self.thread_pool = QThreadPool.globalInstance()
@@ -128,7 +219,11 @@ class TTSEngine(QObject):
     def is_speaking(self) -> bool:
         return self._is_speaking
 
+    def _is_generation_active(self, gen: int) -> bool:
+        return self._is_speaking and self._current_generation == gen
+
     def stop(self):
+        self._current_generation += 1
         try:
             winmm.mciSendStringW("stop ft_tts", None, 0, None)
             winmm.mciSendStringW("close ft_tts", None, 0, None)
@@ -139,8 +234,9 @@ class TTSEngine(QObject):
                 self._qt_tts.stop()
             except Exception:
                 pass
-        self._is_speaking = False
-        self.speaking_finished.emit()
+        if self._is_speaking:
+            self._is_speaking = False
+            self.speaking_finished.emit()
 
     def speak(self, text: str, lang: str = "en"):
         text = text.strip()
@@ -151,39 +247,45 @@ class TTSEngine(QObject):
         lang_code = lang.lower().split("-")[0].strip()
 
         self._is_speaking = True
+        gen = self._current_generation
         self.speaking_started.emit()
 
-        # Primary engine: Natural voice with caching and MCI audio playback
+        # Primary engine: Natural voice with chunking, caching and MCI audio playback
         task = TTSTask(
             text=text,
             lang=lang_code,
             cache_dir=self.cache_dir,
+            generation=gen,
+            is_generation_active_callback=self._is_generation_active,
             on_finish_callback=self._on_tts_finished,
-            offline_fallback_callback=self._speak_offline_fallback
+            offline_fallback_callback=self._speak_offline_fallback,
         )
         self.thread_pool.start(task)
 
-    def _speak_offline_fallback(self, text: str, lang_code: str):
+    def _speak_offline_fallback(self, text: str, lang_code: str, gen: int):
         """Offline fallback using Windows SAPI / PowerShell"""
+        if not self._is_generation_active(gen):
+            return
         print(f"[TTS] Invoking offline voice fallback for lang={lang_code}...")
         try:
-            escaped = text.replace("'", "''")[:200]
+            escaped = text.replace("'", "''")[:300]
             cmd = f"(New-Object -ComObject SAPI.SpVoice).Speak('{escaped}')"
             flags = getattr(subprocess, "CREATE_NO_WINDOW", 0x08000000)
             subprocess.run(
                 ["powershell", "-NoProfile", "-NonInteractive", "-Command", cmd],
                 creationflags=flags,
-                timeout=8
+                timeout=10,
             )
         except Exception as e:
             print(f"[TTS] Offline fallback failed: {e}")
 
-    def _on_tts_finished(self):
-        self._is_speaking = False
-        try:
-            self.speaking_finished.emit()
-        except RuntimeError:
-            pass
+    def _on_tts_finished(self, gen: int):
+        if self._current_generation == gen and self._is_speaking:
+            self._is_speaking = False
+            try:
+                self.speaking_finished.emit()
+            except RuntimeError:
+                pass
 
 
 # Singleton instance
