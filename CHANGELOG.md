@@ -5,6 +5,20 @@ Mọi thay đổi đáng chú ý của dự án FastTranslate sẽ được ghi 
 
 ---
 
+## [1.5.3] - 2026-10-21
+
+### Fixed
+- **Sửa lỗi phát âm văn bản dài (TTS Long Text Chunking)**:
+  - Khắc phục hiện tượng văn bản dài (tiếng Anh hoặc tiếng Việt) bị cắt ngang/dừng đột ngột chỉ sau một đoạn ngắn do giới hạn độ dài ký tự của endpoint Google TTS (`q=...`).
+  - Triển khai thuật toán phân đoạn thông minh `split_text_into_chunks()` tách văn bản tự nhiên theo ranh giới câu (`. ! ? ; \n`) và từ ngữ (<180 ký tự), phát tuần tự toàn bộ các đoạn qua Windows MCI (`winmm.dll`) mà không bị mất chữ hay đứt quãng.
+  - Tích hợp kiểm soát vòng đời và ngắt phát âm (`generation tracking`), dừng ngay lập tức mọi đoạn âm thanh đang phát khi người dùng bấm dừng hoặc đóng popup.
+- **Sửa triệt để sự cố đọc nhầm nội dung nút Đọc bản dịch (TTS Target Playback)**:
+  - Tách biệt rõ ràng tiến trình của ứng dụng cũ còn chạy ngầm, bảo đảm nút `🔊 Đọc` ở footer luôn phát âm chính xác 100% văn bản dịch tiếng Việt sang âm thanh tiếng Việt bản ngữ, và nút `🔊 Đọc` ở header luôn phát âm chính xác văn bản gốc.
+  - Bổ sung các unit test chuyên biệt `test_split_text_into_chunks_long_english`, `test_split_text_into_chunks_long_vietnamese`, `test_speak_target_uses_target_language_and_text` và `test_speak_source_uses_source_language_and_text`. Toàn bộ **40/40 tests pass 100%**.
+  - Đã biên dịch lại bản thực thi độc lập `dist/FastTranslate.exe` và khởi chạy trên hệ thống.
+
+---
+
 ## [1.5.2] - 2026-10-19
 
 ### Fixed
