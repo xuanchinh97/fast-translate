@@ -57,6 +57,24 @@ QTextEdit#TranslatedText {
     padding: 4px;
 }
 
+/* Kiểu hiển thị lỗi và rỗng cho TranslatedText */
+QTextEdit#TranslatedText[state="error"] {
+    color: #f87171;
+    font-size: 12px;
+    font-style: italic;
+}
+
+QTextEdit#TranslatedText[state="empty"] {
+    color: #71717a;
+    font-size: 13px;
+    font-style: italic;
+}
+
+QTextEdit#TranslatedText[state="translating"] {
+    color: #93c5fd;
+    font-size: 13px;
+}
+
 QPushButton {
     background-color: #2b2b36;
     border: 1px solid #3b3b4a;
@@ -138,7 +156,7 @@ QPushButton#RetryButton {
     border-radius: 5px;
     color: #fca5a5;
     font-size: 10px;
-    padding: 2px 7px;
+    padding: 3px 8px;
     font-weight: 600;
 }
 
@@ -220,6 +238,17 @@ QPushButton#CopyButton {
 
 QPushButton#CopyButton:hover {
     background-color: #3b82f6;
+}
+
+QPushButton#CopyButton:disabled {
+    background-color: #242430;
+    color: #52525b;
+    border: 1px solid #33333f;
+}
+
+QPushButton#CopyButton[copied="true"] {
+    background-color: #10b981;
+    color: #ffffff;
 }
 
 QScrollBar:vertical {
