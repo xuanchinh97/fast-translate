@@ -61,6 +61,7 @@ class PopupWindow(QWidget):
         self.source_lang = config.get("source_lang", "auto")
         self.target_lang = config.get("target_lang", "vi")
         self._detected_src_lang = None
+        self._current_speaking_target = None  # 'source', 'target', or None
 
         # Debounce timer tự động dịch sau khi người dùng dừng gõ 600ms
         self._debounce_timer = QTimer(self)
@@ -379,29 +380,66 @@ class PopupWindow(QWidget):
         self.lang_badge.setText(f"{src_disp} ➔ {tgt_disp}")
 
     def speak_source_text(self):
-        """Phát âm văn bản gốc"""
+        """Phát âm hoặc dừng phát âm văn bản gốc (Bấm lần 2 để dừng)"""
+        if tts_engine.is_speaking() and self._current_speaking_target == "source":
+            tts_engine.stop()
+            return
+
         text = self.source_edit.toPlainText().strip()
         if not text:
             return
         lang = self._detected_src_lang or self.source_lang
         if lang == "auto":
             lang = "en"
+        self._current_speaking_target = "source"
         tts_engine.speak(text, lang)
 
     def speak_target_text(self):
-        """Phát âm bản dịch"""
+        """Phát âm hoặc dừng phát âm bản dịch (Bấm lần 2 để dừng)"""
+        if tts_engine.is_speaking() and self._current_speaking_target == "target":
+            tts_engine.stop()
+            return
+
         text = self.target_edit.toPlainText().strip()
         if not text or text.startswith("⏳") or text.startswith("Chưa") or text.startswith("Đang") or text.startswith("Đã"):
             return
         lang = self.target_lang or "vi"
+        self._current_speaking_target = "target"
         tts_engine.speak(text, lang)
 
     def _on_speaking_started(self):
         self.status_label.setText("🔊 Đang phát âm...")
+        self._update_tts_buttons_state()
 
     def _on_speaking_finished(self):
+        self._current_speaking_target = None
+        self._update_tts_buttons_state()
         current_len = len(self.source_edit.toPlainText().strip())
         self.status_label.setText(f"{current_len} ký tự - Đã dịch" if current_len else "")
+
+    def _update_tts_buttons_state(self):
+        """Cập nhật giao diện nút Đọc sang Dừng tùy thuộc vào đối tượng đang phát âm"""
+        if tts_engine.is_speaking() and self._current_speaking_target == "source":
+            self.speak_source_btn.setText("⏹ Dừng")
+            self.speak_source_btn.setObjectName("StopButton")
+            self.speak_source_btn.setToolTip("Dừng phát âm văn bản gốc")
+        else:
+            self.speak_source_btn.setText("🔊 Đọc")
+            self.speak_source_btn.setObjectName("SmallActionButton")
+            self.speak_source_btn.setToolTip("Nghe phát âm văn bản gốc")
+        self.speak_source_btn.style().unpolish(self.speak_source_btn)
+        self.speak_source_btn.style().polish(self.speak_source_btn)
+
+        if tts_engine.is_speaking() and self._current_speaking_target == "target":
+            self.speak_target_btn.setText("⏹ Dừng")
+            self.speak_target_btn.setObjectName("StopButton")
+            self.speak_target_btn.setToolTip("Dừng phát âm bản dịch")
+        else:
+            self.speak_target_btn.setText("🔊 Đọc")
+            self.speak_target_btn.setObjectName("SmallActionButton")
+            self.speak_target_btn.setToolTip("Nghe phát âm bản dịch")
+        self.speak_target_btn.style().unpolish(self.speak_target_btn)
+        self.speak_target_btn.style().polish(self.speak_target_btn)
 
     def _trigger_translation(self, text: str):
         """Bắt đầu tác vụ dịch ngầm"""
