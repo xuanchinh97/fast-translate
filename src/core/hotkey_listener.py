@@ -2,8 +2,8 @@ import sys
 import time
 import ctypes
 from ctypes import wintypes
-from PySide6.QtCore import Qt, QObject, Signal
-from PySide6.QtWidgets import QWidget
+from PySide6.QtCore import Qt, QObject, Signal, QAbstractNativeEventFilter, QTimer
+from PySide6.QtWidgets import QWidget, QApplication
 from src.config import config
 
 user32 = ctypes.windll.user32
@@ -17,6 +17,28 @@ MOD_NOREPEAT = 0x4000
 
 HOTKEY_ID_TEXT = 1001
 HOTKEY_ID_OCR = 1002
+
+
+class HotkeyNativeEventFilter(QAbstractNativeEventFilter):
+    """Bắt các sự kiện WM_HOTKEY cấp ứng dụng thông qua Qt Native Event Filter"""
+    def __init__(self, listener):
+        super().__init__()
+        self.listener = listener
+
+    def nativeEventFilter(self, eventType, message):
+        if eventType == b"windows_generic_MSG":
+            try:
+                msg = wintypes.MSG.from_address(int(message))
+                if msg.message == WM_HOTKEY:
+                    if msg.wParam == HOTKEY_ID_TEXT:
+                        self.listener._on_text_pressed()
+                        return True, 0
+                    elif msg.wParam == HOTKEY_ID_OCR:
+                        self.listener._on_ocr_pressed()
+                        return True, 0
+            except Exception:
+                pass
+        return False, 0
 
 
 def parse_hotkey(s: str) -> tuple[int, int]:
@@ -42,7 +64,7 @@ def parse_hotkey(s: str) -> tuple[int, int]:
 class HotkeyListener(QWidget):
     """
     Dual-engine Hotkey Listener:
-    1. Primary: Windows Kernel RegisterHotKey via Top-Level QWidget nativeEvent (immune to antivirus/hook blocking)
+    1. Primary: Windows Kernel RegisterHotKey + QAbstractNativeEventFilter (bắt 100% WM_HOTKEY ở cấp ứng dụng)
     2. Secondary: Python keyboard low-level hook (fast fallback)
     Debounced with 350ms window to prevent duplicate triggering.
     """
@@ -55,6 +77,7 @@ class HotkeyListener(QWidget):
         self._is_running = False
         self._last_trigger_text = 0.0
         self._last_trigger_ocr = 0.0
+        self._filter = None
 
     def _on_text_pressed(self):
         now = time.time()
@@ -66,6 +89,7 @@ class HotkeyListener(QWidget):
             log("[Hotkey] Triggered: Text (Alt+D)")
         except Exception:
             pass
+        # Nhả hook thread ngay lập tức để Windows không bao giờ bị timeout
         self.text_hotkey_triggered.emit()
 
     def _on_ocr_pressed(self):
@@ -90,7 +114,7 @@ class HotkeyListener(QWidget):
         m1, k1 = parse_hotkey(text_hk)
         m2, k2 = parse_hotkey(ocr_hk)
 
-        # 1. Register with Windows Kernel on this top-level HWND
+        # 1. Đăng ký Windows Kernel HotKey trên HWND của listener
         r1 = user32.RegisterHotKey(self.hwnd, HOTKEY_ID_TEXT, m1, k1)
         r2 = user32.RegisterHotKey(self.hwnd, HOTKEY_ID_OCR, m2, k2)
 
@@ -100,8 +124,13 @@ class HotkeyListener(QWidget):
         except Exception:
             pass
 
-        # 2. Also register keyboard module hook as complementary engine with suppress=True
-        # (Crucial: suppress=True ensures Alt+D does not reach Chrome/Edge to focus address bar and deselect text!)
+        # Cài đặt QAbstractNativeEventFilter để đón WM_HOTKEY từ bất kỳ đâu trong app
+        app = QApplication.instance()
+        if app and not self._filter:
+            self._filter = HotkeyNativeEventFilter(self)
+            app.installNativeEventFilter(self._filter)
+
+        # 2. Đăng ký song song qua keyboard module hook (với suppress=True)
         try:
             import keyboard
             keyboard.add_hotkey(text_hk, self._on_text_pressed, suppress=True)
@@ -137,6 +166,10 @@ class HotkeyListener(QWidget):
         if self._is_running:
             user32.UnregisterHotKey(self.hwnd, HOTKEY_ID_TEXT)
             user32.UnregisterHotKey(self.hwnd, HOTKEY_ID_OCR)
+            app = QApplication.instance()
+            if app and self._filter:
+                app.removeNativeEventFilter(self._filter)
+                self._filter = None
             try:
                 import keyboard
                 keyboard.unhook_all_hotkeys()

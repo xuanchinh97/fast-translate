@@ -85,6 +85,8 @@ class PopupWindow(QWidget):
         self._has_valid_translation = False
         self._translation_req_id = 0
         self._running_translation_tasks = []
+        self._just_shown = False
+        self._has_been_active = False
 
         # Cặp ngôn ngữ hiện tại
         self.source_lang = config.get("source_lang", "auto")
@@ -564,6 +566,36 @@ class PopupWindow(QWidget):
 
         self.thread_pool.start(task)
 
+    def bring_to_foreground(self):
+        """Đưa popup lên hàng đầu và cấp focus cho ô input an toàn trên Windows"""
+        self.show()
+        self.raise_()
+        self.activateWindow()
+        try:
+            import ctypes
+            user32 = ctypes.windll.user32
+            kernel32 = ctypes.windll.kernel32
+            hwnd = int(self.winId())
+            fg_hwnd = user32.GetForegroundWindow()
+            if fg_hwnd and fg_hwnd != hwnd:
+                fg_thread = user32.GetWindowThreadProcessId(fg_hwnd, None)
+                cur_thread = kernel32.GetCurrentThreadId()
+                if fg_thread != cur_thread:
+                    user32.AttachThreadInput(cur_thread, fg_thread, True)
+                    user32.SetForegroundWindow(hwnd)
+                    user32.BringWindowToTop(hwnd)
+                    user32.AttachThreadInput(cur_thread, fg_thread, False)
+                else:
+                    user32.SetForegroundWindow(hwnd)
+                    user32.BringWindowToTop(hwnd)
+            else:
+                user32.SetForegroundWindow(hwnd)
+                user32.BringWindowToTop(hwnd)
+        except Exception:
+            pass
+        self.source_edit.setFocus()
+        QTimer.singleShot(40, self.source_edit.setFocus)
+
     def show_empty_prompt(self, target_pos: QPoint = None):
         tts_engine.stop()
         self.retranslate_btn.setVisible(False)
@@ -580,16 +612,13 @@ class PopupWindow(QWidget):
         self._update_lang_badge_display()
         self.status_label.setText("💡 Chưa phát hiện chữ bôi đen. Nhập vào ô trên để dịch.")
         self.position_smartly(target_pos)
-        self.show()
-        self.raise_()
-        self.activateWindow()
-        try:
-            import ctypes
-            ctypes.windll.user32.SetForegroundWindow(int(self.winId()))
-        except Exception:
-            pass
-        self.source_edit.setFocus()
-        QTimer.singleShot(40, self.source_edit.setFocus)
+
+        # Chặn tự đóng trong 1.5s đầu khi vừa mở cửa sổ
+        self._just_shown = True
+        self._has_been_active = False
+        QTimer.singleShot(1500, self._clear_just_shown)
+
+        self.bring_to_foreground()
 
     def show_translation_for_text(self, text: str, target_pos: QPoint = None):
         tts_engine.stop()
@@ -605,11 +634,17 @@ class PopupWindow(QWidget):
         self._is_programmatic_change = False
 
         self.position_smartly(target_pos)
-        self.show()
-        self.raise_()
-        self.activateWindow()
 
+        # Chặn tự đóng trong 1.5s đầu khi vừa mở cửa sổ
+        self._just_shown = True
+        self._has_been_active = False
+        QTimer.singleShot(1500, self._clear_just_shown)
+
+        self.bring_to_foreground()
         self._trigger_translation(text)
+
+    def _clear_just_shown(self):
+        self._just_shown = False
 
     def _on_translation_finished(self, result: TranslationResult, req_id: int = 0):
         current_text = self.source_edit.toPlainText().strip()
@@ -672,13 +707,17 @@ class PopupWindow(QWidget):
     def changeEvent(self, event):
         super().changeEvent(event)
         if event.type() == event.Type.ActivationChange:
-            if not self.isActiveWindow() and not self.is_pinned:
-                if config.get("auto_close_on_focus_loss", True):
-                    # Slight delay so clicks on tray or other actions don't race
-                    QTimer.singleShot(150, self._check_and_hide_if_inactive)
+            if self.isActiveWindow():
+                self._has_been_active = True
+            elif not self.is_pinned and not self._just_shown:
+                # Chỉ tự đóng khi cửa sổ ĐÃ TỪNG ACTIVE (người dùng click ra ngoài sau khi đã dùng)
+                if self._has_been_active and config.get("auto_close_on_focus_loss", True):
+                    QTimer.singleShot(250, self._check_and_hide_if_inactive)
 
     def _check_and_hide_if_inactive(self):
-        if not self.isActiveWindow() and not self.is_pinned:
+        if self._just_shown or self.is_pinned:
+            return
+        if not self.isActiveWindow() and self._has_been_active:
             self.hide()
 
     def keyPressEvent(self, event: QKeyEvent):
