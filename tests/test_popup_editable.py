@@ -146,6 +146,15 @@ class TestPopupEditable(unittest.TestCase):
         self.assertEqual(self.popup.source_lang.lower(), "vi")
         self.assertEqual(self.popup.target_lang.lower(), "en")
 
+    def test_paste_triggers_instant_translation(self):
+        """Kiểm tra sự kiện paste kích hoạt dịch ngay không bị kẹt debounce hay chờ tác động"""
+        from PySide6.QtCore import QMimeData
+        mime = QMimeData()
+        mime.setText("Hello world from paste")
+        self.popup.source_edit.insertFromMimeData(mime)
+        self.app.processEvents()
+        self.assertEqual(self.popup.source_edit.toPlainText(), "Hello world from paste")
+
 
 if __name__ == "__main__":
     unittest.main()

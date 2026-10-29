@@ -12,21 +12,23 @@ from src.ui.styles import DARK_THEME
 
 
 class TranslationSignals(QObject):
-    finished = Signal(TranslationResult)
+    finished = Signal(TranslationResult, int)
 
 
 class TranslationTask(QRunnable):
-    def __init__(self, text: str, src: str = "auto", tgt: str = "vi"):
+    def __init__(self, text: str, src: str = "auto", tgt: str = "vi", req_id: int = 0):
         super().__init__()
         self.text = text
         self.src = src
         self.tgt = tgt
+        self.req_id = req_id
         self.signals = TranslationSignals()
+        self.setAutoDelete(False)  # Giữ task trong Python để tránh C++ xóa sớm khi signal đang emit
 
     def run(self):
         result = translator.translate(self.text, src=self.src, tgt=self.tgt)
         try:
-            self.signals.finished.emit(result)
+            self.signals.finished.emit(result, self.req_id)
         except RuntimeError:
             pass
 
@@ -37,6 +39,11 @@ class SourceTextEdit(QTextEdit):
     escape_requested = Signal()
     copy_requested = Signal()
     swap_requested = Signal()
+    pasted = Signal()
+
+    def insertFromMimeData(self, source):
+        super().insertFromMimeData(source)
+        self.pasted.emit()
 
     def keyPressEvent(self, event: QKeyEvent):
         # Esc -> Đóng popup
@@ -76,6 +83,8 @@ class PopupWindow(QWidget):
         self._last_translated_text = ""
         self._active_translation_task = None
         self._has_valid_translation = False
+        self._translation_req_id = 0
+        self._running_translation_tasks = []
 
         # Cặp ngôn ngữ hiện tại
         self.source_lang = config.get("source_lang", "auto")
@@ -195,6 +204,7 @@ class PopupWindow(QWidget):
         self.source_edit.escape_requested.connect(self.hide)
         self.source_edit.copy_requested.connect(self.copy_translation)
         self.source_edit.swap_requested.connect(self.swap_language_direction)
+        self.source_edit.pasted.connect(self._on_source_text_pasted)
         self.source_edit.textChanged.connect(self._on_source_text_changed)
         card_layout.addWidget(self.source_edit)
 
@@ -516,6 +526,18 @@ class PopupWindow(QWidget):
         self.speak_target_btn.style().unpolish(self.speak_target_btn)
         self.speak_target_btn.style().polish(self.speak_target_btn)
 
+    def _on_source_text_pasted(self):
+        """Xử lý khi người dùng dán (paste) nội dung vào: bỏ qua độ trễ debounce và dịch ngay"""
+        self._debounce_timer.stop()
+        # Chờ 40ms để widget hoàn tất việc chèn text vào document
+        QTimer.singleShot(40, self._process_paste_translation)
+
+    def _process_paste_translation(self):
+        text = self.source_edit.toPlainText().strip()
+        if text:
+            self.status_label.setText(f"{len(text)} ký tự - Đang dịch...")
+            self._trigger_translation(text)
+
     def _trigger_translation(self, text: str):
         """Bắt đầu tác vụ dịch ngầm"""
         self.retranslate_btn.setVisible(False)
@@ -527,10 +549,20 @@ class PopupWindow(QWidget):
         self._update_lang_badge_display()
         self.status_label.setText(f"{len(text)} ký tự - Đang dịch...")
 
-        # Async translation (retain reference to prevent GC)
-        self._active_translation_task = TranslationTask(text, src=self.source_lang, tgt=self.target_lang)
-        self._active_translation_task.signals.finished.connect(self._on_translation_finished)
-        self.thread_pool.start(self._active_translation_task)
+        # Ép vẽ lại giao diện trạng thái đang dịch tức thì
+        self.target_edit.update()
+        self.card.update()
+
+        self._translation_req_id += 1
+        current_req = self._translation_req_id
+
+        task = TranslationTask(text, src=self.source_lang, tgt=self.target_lang, req_id=current_req)
+        task.signals.finished.connect(self._on_translation_finished)
+        self._running_translation_tasks.append(task)
+        if len(self._running_translation_tasks) > 10:
+            self._running_translation_tasks = self._running_translation_tasks[-5:]
+
+        self.thread_pool.start(task)
 
     def show_empty_prompt(self, target_pos: QPoint = None):
         tts_engine.stop()
@@ -579,9 +611,14 @@ class PopupWindow(QWidget):
 
         self._trigger_translation(text)
 
-    def _on_translation_finished(self, result: TranslationResult):
+    def _on_translation_finished(self, result: TranslationResult, req_id: int = 0):
         current_text = self.source_edit.toPlainText().strip()
-        if result.original != current_text:
+        # Chuẩn hóa ký tự xuống dòng để so sánh chính xác giữa \r\n (Windows clipboard) và \n (QTextEdit)
+        norm_orig = result.original.replace("\r\n", "\n").strip()
+        norm_curr = current_text.replace("\r\n", "\n").strip()
+
+        # Nếu không phải request mới nhất VÀ nội dung không khớp thì mới bỏ qua
+        if req_id != 0 and req_id != self._translation_req_id and norm_orig != norm_curr:
             return
 
         if result.success:
@@ -591,7 +628,7 @@ class PopupWindow(QWidget):
             self.target_edit.setPlainText(result.translated)
             self._detected_src_lang = result.source_lang.lower()
             self._update_lang_badge_display()
-            self.status_label.setText(f"{len(current_text)} ký tự - Đã dịch")
+            self.status_label.setText(f"{len(norm_curr)} ký tự - Đã dịch")
             self.copy_btn.setEnabled(True)
         else:
             self._has_valid_translation = False
@@ -602,6 +639,15 @@ class PopupWindow(QWidget):
             self.lang_badge.setText("LỖI")
             self.status_label.setText("Lỗi kết nối dịch thuật")
             self.copy_btn.setEnabled(False)
+
+        # Ép buộc vẽ lại giao diện tức thì, tránh lỗi hiển thị DWM trên Windows
+        self.target_edit.update()
+        self.card.update()
+        self.update()
+        from PySide6.QtWidgets import QApplication
+        app = QApplication.instance()
+        if app:
+            app.processEvents()
 
     def hide(self):
         tts_engine.stop()

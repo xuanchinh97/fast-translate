@@ -111,11 +111,11 @@ class GUITHREADINFO(ctypes.Structure):
 
 
 def get_clipboard_text() -> str:
-    """Reads CF_UNICODETEXT directly from Windows Clipboard with automatic retry"""
-    for _ in range(8):
+    """Reads CF_UNICODETEXT directly from Windows Clipboard with robust retry"""
+    for _ in range(25):
         if user32.OpenClipboard(0):
             break
-        kernel32.Sleep(10)
+        time.sleep(0.02)
     else:
         return ""
     try:
@@ -134,7 +134,7 @@ def get_clipboard_text() -> str:
 
 
 def set_clipboard_text(text: str) -> bool:
-    """Writes CF_UNICODETEXT directly to Windows Clipboard"""
+    """Writes CF_UNICODETEXT directly to Windows Clipboard with robust retry"""
     if text is None:
         return False
     data_bytes = (text + "\0").encode("utf-16le")
@@ -143,15 +143,17 @@ def set_clipboard_text(text: str) -> bool:
         return False
     ptr = kernel32.GlobalLock(h_mem)
     if not ptr:
+        kernel32.GlobalFree(h_mem)
         return False
     ctypes.memmove(ptr, data_bytes, len(data_bytes))
     kernel32.GlobalUnlock(h_mem)
 
-    for _ in range(8):
+    for _ in range(25):
         if user32.OpenClipboard(0):
             break
-        kernel32.Sleep(10)
+        time.sleep(0.02)
     else:
+        kernel32.GlobalFree(h_mem)
         return False
     try:
         user32.EmptyClipboard()

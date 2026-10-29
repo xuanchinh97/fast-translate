@@ -5,6 +5,20 @@ Mọi thay đổi đáng chú ý của dự án FastTranslate sẽ được ghi 
 
 ---
 
+## [1.6.3] - 2026-10-29
+
+### Fixed
+- **Khắc phục triệt để lỗi khi dán (paste) nội dung bị pending 'Đang dịch...' chờ tương tác mới hoàn tất (Instant Paste Translation & DWM Repaint Fix)**:
+  - **Kích hoạt dịch tức thì khi Paste**: Bắt sự kiện `insertFromMimeData` trên ô nhập liệu, bỏ qua độ trễ 600ms của debounce gõ phím thông thường và kích hoạt dịch ngay sau 40ms.
+  - **Chuẩn hóa ký tự xuống dòng (`\r\n` vs `\n`)**: Khắc phục lỗi so sánh chuỗi gốc (`result.original != current_text`) khi dán văn bản nhiều dòng từ clipboard Windows làm hệ thống âm thầm hủy kết quả và treo ở trạng thái 'Đang dịch...'.
+  - **Định danh phiên bản tác vụ (`req_id`)**: Quản lý từng lượt dịch bằng `req_id`, đảm bảo kết quả của tác vụ mới nhất luôn được hiển thị chính xác.
+  - **Bảo toàn vòng đời Signal & QRunnable**: Đặt `setAutoDelete(False)` và lưu trữ tham chiếu tác vụ, ngăn chặn Qt C++ thu hồi bộ nhớ sớm làm đứt gãy kết nối signal `finished` giữa worker thread và main UI thread.
+  - **Ép buộc vẽ lại giao diện (Immediate DWM Repaint)**: Gọi `target_edit.update()`, `card.update()` và `QApplication.processEvents()` ngay khi có kết quả dịch, giải quyết triệt để lỗi Windows DWM không vẽ lại vùng cửa sổ trong suốt cho đến khi người dùng di chuột/tác động vào input.
+  - **Tối ưu hóa khả năng truy xuất Clipboard Windows**: Tăng số lần thử lại (`retry` lên 25 lần) khi mở clipboard tránh tranh chấp với các tiến trình chạy ngầm khác.
+  - Bổ sung unit test `test_paste_triggers_instant_translation`, nâng tổng số test cases lên **48/48 tests pass 100%**.
+
+---
+
 ## [1.6.2] - 2026-10-29
 
 ### Changed
