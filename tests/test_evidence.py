@@ -91,14 +91,22 @@ class FastTranslateEvidenceTest(unittest.TestCase):
         popup.close()
 
     def test_06_text_extractor_multi_tier(self):
-        """Verifies multi-tier text extractor captures text without destructive clipboard wipe"""
+        """Verifies multi-tier text extractor captures text on copy, and returns empty when no selection"""
         from src.core.text_extractor import get_selected_text, set_clipboard_text, get_clipboard_text
+        from unittest.mock import patch
         orig = get_clipboard_text()
         test_payload = "Evidence 6: Fast and accurate selection extraction"
         set_clipboard_text(test_payload)
-        extracted = get_selected_text()
-        print(f"[Evidence 6] Extracted text via multi-tier fallback: '{extracted}'")
+
+        # 1. When newly selected text is copied (sequence number changes)
+        with patch("src.core.text_extractor.user32.GetClipboardSequenceNumber", side_effect=[100, 101, 101, 101]):
+            extracted = get_selected_text()
+        print(f"[Evidence 6] Extracted text on selection copy: '{extracted}'")
         self.assertEqual(extracted, test_payload)
+
+        # 2. When no text is selected (sequence number remains unchanged)
+        empty_result = get_selected_text()
+        self.assertEqual(empty_result, "", "Must return empty string when no text is selected")
         set_clipboard_text(orig)
 
 

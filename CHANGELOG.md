@@ -5,6 +5,17 @@ Mọi thay đổi đáng chú ý của dự án FastTranslate sẽ được ghi 
 
 ---
 
+## [1.6.2] - 2026-10-29
+
+### Changed
+- **Chuẩn hóa hành vi mở cửa sổ dịch khi không có văn bản bôi đen (Empty Selection Handling)**:
+  - **Loại bỏ cơ chế lấy lại nội dung Clipboard cũ**: Khi bấm phím tắt `Alt + D` mà không bôi đen text nào, hệ thống không còn tự động điền lại nội dung của lần copy trước từ clipboard vào ô input.
+  - **Ô nhập liệu văn bản gốc để rỗng**: Ô input mở ra hoàn toàn trống, sẵn sàng cho việc nhập liệu mới theo đúng hành vi kỳ vọng của người dùng.
+  - **Tự động Focus ngay vào ô nhập liệu**: Ép quyền cửa sổ nổi (`SetForegroundWindow`) và tự động focus con trỏ bàn phím nhấp nháy ngay trong ô văn bản gốc, người dùng có thể gõ nội dung cần dịch tức thì mà không cần dùng chuột nhấp vào ô.
+  - Cập nhật bộ unit tests (`test_get_selected_text_returns_empty_when_no_selection` và `test_get_selected_text_captures_when_selection_copied`), nâng tổng số test cases lên **47/47 tests pass 100%**.
+
+---
+
 ## [1.6.1] - 2026-10-21
 
 ### Fixed

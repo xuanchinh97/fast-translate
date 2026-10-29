@@ -316,10 +316,8 @@ def get_selected_text() -> str:
         # Restore old clipboard if requested and we had previous text
         if restore and old_text and old_text != copied_text:
             restore_clipboard_delayed(old_text)
-    else:
-        # Tier 3: If no new copy event occurred, check if clipboard already has text that user copied
-        # This allows user to simply press Ctrl+C anywhere then Alt+D
-        if old_text and old_text.strip():
-            copied_text = old_text.strip()
+    # Note: If no new selection is detected (new_seq_detected is False),
+    # copied_text remains empty string (""). The popup will open with an empty
+    # input box and immediate focus, per user expectation.
 
     return copied_text

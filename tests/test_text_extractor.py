@@ -52,14 +52,24 @@ class TestTextExtractor(unittest.TestCase):
         dur = time.time() - t0
         self.assertLess(dur, 0.3, "wait_for_modifiers_released must respect timeout")
 
-    def test_get_selected_text_fallback_to_existing_clipboard(self):
-        """Kiểm tra khi người dùng đã có sẵn text trong clipboard thì lấy luôn text đó"""
-        test_sample = "Artificial Intelligence is transforming coding"
+    def test_get_selected_text_returns_empty_when_no_selection(self):
+        """Kiểm tra khi không bôi đen chữ mới: get_selected_text trả về rỗng thay vì text cũ"""
+        test_sample = "Old clipboard content from previous action"
         set_clipboard_text(test_sample)
 
-        # Trong môi trường test không có window nào được bôi đen, get_selected_text
-        # phải lấy được nội dung có sẵn thay vì báo rỗng (Fallback Tier 3)
+        # Khi không có vùng chọn mới nào (sequence number không đổi), hàm phải trả về ""
         extracted = get_selected_text()
+        self.assertEqual(extracted, "", "Must return empty string when no new text is selected")
+
+    def test_get_selected_text_captures_when_selection_copied(self):
+        """Kiểm tra khi có vùng chọn mới được copy: trích xuất đúng text mới"""
+        from unittest.mock import patch
+        test_sample = "Newly selected text"
+        set_clipboard_text(test_sample)
+
+        # Giả lập sequence number thay đổi (ứng dụng đích vừa hoàn thành copy vùng chọn)
+        with patch("src.core.text_extractor.user32.GetClipboardSequenceNumber", side_effect=[100, 101, 101, 101]):
+            extracted = get_selected_text()
         self.assertEqual(extracted, test_sample)
 
     def test_restore_clipboard_functionality(self):

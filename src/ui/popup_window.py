@@ -551,7 +551,13 @@ class PopupWindow(QWidget):
         self.show()
         self.raise_()
         self.activateWindow()
+        try:
+            import ctypes
+            ctypes.windll.user32.SetForegroundWindow(int(self.winId()))
+        except Exception:
+            pass
         self.source_edit.setFocus()
+        QTimer.singleShot(40, self.source_edit.setFocus)
 
     def show_translation_for_text(self, text: str, target_pos: QPoint = None):
         tts_engine.stop()
